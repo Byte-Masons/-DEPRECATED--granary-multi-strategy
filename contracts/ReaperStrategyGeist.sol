@@ -52,20 +52,24 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * @dev Tokens Used:
      * {WFTM} - Required for liquidity routing when doing swaps.
      * {GEIST} - Reward token for borrowing/lending that is used to rebalance and re-deposit.
+     * {DAI} - For charging fees
      * {rewardClaimingTokens} - Array containing gWant + corresponding variable debt token,
      *                          used for vesting any oustanding unvested Geist tokens.
      */
     address public constant WFTM = address(0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83);
     address public constant GEIST = address(0xd8321AA83Fb0a4ECd6348D4577431310A6E0814d);
+    address public constant DAI = 0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E;
     address[] public rewardClaimingTokens;
 
     /**
      * @dev Paths used to swap tokens:
      * {wftmToWantPath} - to swap {WFTM} to {want}
      * {geistToWftmPath} - to swap {GEIST} to {WFTM}
+     * {wftmToDaiRoute} - Route we take to get from {WFTM} into {DAI}.
      */
     address[] public wftmToWantPath;
     address[] public geistToWftmPath;
+    address[] public wftmToDaiRoute;
 
     uint256 public maxLtv; // in hundredths of percent, 8000 = 80%
     uint256 public minLeverageAmount;
@@ -156,27 +160,25 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
             uint256 repayment
         )
     {
-        // _claimRewards();
-        // _swapRewardsToWftm();
-        // callerFee = _chargeFees();
-        // _swapToWant();
+        _processGeistVestsAndSwapToFtm();
+        callerFee = _chargeFees();
+        _convertWftmToWant();
         
-        // uint256 allocated = IVault(vault).strategies(address(this)).allocated;
-        // updateBalance();
-        // uint256 totalAssets = balanceOf();
-        // uint256 toFree = _debt;
+        uint256 allocated = IVault(vault).strategies(address(this)).allocated;
+        uint256 totalAssets = balanceOf();
+        uint256 toFree = _debt;
 
-        // if (totalAssets > allocated) {
-        //     uint256 profit = totalAssets - allocated;
-        //     toFree += profit;
-        //     roi = int256(profit);
-        // } else if (totalAssets < allocated) {
-        //     roi = -int256(allocated - totalAssets);
-        // }
+        if (totalAssets > allocated) {
+            uint256 profit = totalAssets - allocated;
+            toFree += profit;
+            roi = int256(profit);
+        } else if (totalAssets < allocated) {
+            roi = -int256(allocated - totalAssets);
+        }
 
-        // (uint256 amountFreed, uint256 loss) = _liquidatePosition(toFree);
-        // repayment = MathUpgradeable.min(_debt, amountFreed);
-        // roi -= int256(loss);
+        (uint256 amountFreed, uint256 loss) = _liquidatePosition(toFree);
+        repayment = MathUpgradeable.min(_debt, amountFreed);
+        roi -= int256(loss);
     }
 
     function ADDRESSES_PROVIDER() public pure override returns (ILendingPoolAddressesProvider) {
@@ -341,14 +343,24 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     }
 
     /**
-     * @dev Core function of the strat, in charge of collecting and re-investing rewards.
+     * @dev Core harvest function.
+     * Swaps amount using path
      */
-    // function _harvestCore() internal override {
-    //     _processGeistVestsAndSwapToFtm();
-    //     _chargePerformanceFees();
-    //     _convertWftmToWant();
-    //     deposit();
-    // }
+    function _swap(uint256 amount, address[] storage path) internal {
+        if (amount != 0) {
+            IERC20Upgradeable(path[0]).safeIncreaseAllowance(
+                UNI_ROUTER,
+                amount
+            );
+            IUniswapV2Router02(UNI_ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                amount,
+                0,
+                path,
+                address(this),
+                block.timestamp + 600
+            );
+        }
+    }
 
     /**
      * @dev Vests {GEIST} tokens, withdraws them immediately (for 50% penalty), swaps them to {WFTM}.
@@ -367,37 +379,31 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         stakingContract.withdraw(MathUpgradeable.min(amount, penaltyAmount));
 
         uint256 geistBalance = IERC20Upgradeable(GEIST).balanceOf(address(this));
-
-        IERC20Upgradeable(GEIST).safeIncreaseAllowance(
-            UNI_ROUTER,
-            geistBalance
-        );
-        // swap to ftm
-        IUniswapV2Router02(UNI_ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
-            geistBalance,
-            0,
-            geistToWftmPath,
-            address(this),
-            block.timestamp + 600
-        );
+        _swap(geistBalance, geistToWftmPath);
     }
 
     /**
-     * @dev Takes out fees from the rewards.
-     * callFeeToUser is set as a percentage of the fee.
+     * @dev Core harvest function.
+     * Charges fees based on the amount of WFTM gained from reward
      */
-    function _chargePerformanceFees() internal {
-        uint256 wftmFee = (IERC20Upgradeable(WFTM).balanceOf(address(this)) * totalFee) / PERCENT_DIVISOR;
+    function _chargeFees() internal returns (uint256 callerFee) {
+        uint256 wftmFee = IERC20Upgradeable(WFTM).balanceOf(address(this)) * totalFee / PERCENT_DIVISOR;
 
-        if (wftmFee != 0) {
-            uint256 callFeeToUser = (wftmFee * callFee) / PERCENT_DIVISOR;
-            uint256 treasuryFeeToVault = (wftmFee * treasuryFee) / PERCENT_DIVISOR;
+        IERC20Upgradeable dai = IERC20Upgradeable(DAI);
+        uint256 daiBalanceBefore = dai.balanceOf(address(this));
+        _swap(wftmFee, wftmToDaiRoute);
+        uint256 daiBalanceAfter = dai.balanceOf(address(this));
+        
+        uint256 daiFee = daiBalanceAfter - daiBalanceBefore;
+        if (daiFee != 0) {
+            callerFee = (daiFee * callFee) / PERCENT_DIVISOR;
+            uint256 treasuryFeeToVault = (daiFee * treasuryFee) / PERCENT_DIVISOR;
             uint256 feeToStrategist = (treasuryFeeToVault * strategistFee) / PERCENT_DIVISOR;
             treasuryFeeToVault -= feeToStrategist;
 
-            IERC20Upgradeable(WFTM).safeTransfer(msg.sender, callFeeToUser);
-            IERC20Upgradeable(WFTM).safeTransfer(treasury, treasuryFeeToVault);
-            IERC20Upgradeable(WFTM).safeTransfer(strategistRemitter, feeToStrategist);
+            dai.safeTransfer(msg.sender, callerFee);
+            dai.safeTransfer(treasury, treasuryFeeToVault);
+            dai.safeTransfer(strategistRemitter, feeToStrategist);
         }
     }
 
@@ -409,17 +415,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     function _convertWftmToWant() internal {
         uint256 wftmBal = IERC20Upgradeable(WFTM).balanceOf(address(this));
         if (wftmBal != 0 && wftmToWantPath.length > 1) {
-            IERC20Upgradeable(WFTM).safeIncreaseAllowance(
-                UNI_ROUTER,
-                wftmBal
-            );
-            IUniswapV2Router02(UNI_ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
-                wftmBal,
-                0,
-                wftmToWantPath,
-                address(this),
-                block.timestamp + 600
-            );
+            _swap(wftmBal, wftmToWantPath);
         }
     }
 
@@ -542,13 +538,5 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
         IERC20Upgradeable(want).safeApprove(lendingPoolAddress, 0);
         IERC20Upgradeable(want).safeApprove(lendingPoolAddress, type(uint256).max);
-    }
-
-    /**
-     * @dev Removes all the allowances that were given above.
-     */
-    function _removeAllowances() internal {
-        address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
-        IERC20Upgradeable(want).safeApprove(lendingPoolAddress, 0);
     }
 }
