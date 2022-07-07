@@ -124,10 +124,10 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         override
         returns (uint256 liquidatedAmount, uint256 loss)
     {
-        uint256 wantBal = IERC20Upgradeable(want).balanceOf(address(this));
+        uint256 wantBal = balanceOfWant();
         if (wantBal < _amountNeeded) {
             _withdraw(_amountNeeded - wantBal);
-            liquidatedAmount = IERC20Upgradeable(want).balanceOf(address(this));
+            liquidatedAmount = balanceOfWant();
         } else {
             liquidatedAmount = _amountNeeded;
         }
@@ -138,9 +138,9 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     }
 
     function _liquidateAllPositions() internal override returns (uint256 amountFreed) {
-        // _deleverage(type(uint256).max);
-        // _withdrawUnderlying(balanceOfPool);
-        // return balanceOfWant();
+        _delever(type(uint256).max);
+        _withdrawUnderlying(balanceOfPool());
+        return balanceOfWant();
     }
 
     /**
@@ -204,7 +204,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         // simply deposit everything we have
         // lender will automatically open a variable debt position
         // since flash loan was requested with interest rate mode VARIABLE
-        LENDING_POOL().deposit(address(want), IERC20Upgradeable(want).balanceOf(address(this)), address(this), LENDER_REFERRAL_CODE_NONE);
+        LENDING_POOL().deposit(address(want), balanceOfWant(), address(this), LENDER_REFERRAL_CODE_NONE);
 
         return true;
     }
@@ -237,6 +237,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         }
         require(_amount <= balanceOf(), "invalid amount");
 
+        uint256 wantBal = balanceOfWant();
         uint256 remaining = _amount - wantBal;
         (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
         supply -= remaining;
@@ -451,13 +452,9 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * @dev Attempts to safely withdraw {_amount} from the pool and optionally sends it
      *      to the vault.
      */
-    function authorizedWithdrawUnderlying(uint256 _amount, bool _sendToVault) external {
+    function authorizedWithdrawUnderlying(uint256 _amount) external {
         _atLeastRole(STRATEGIST);
-        if (_sendToVault) {
-            _withdrawAndSendToVault(_amount, _amount);
-        } else {
-            _withdrawUnderlying(_amount);
-        }
+        _withdrawUnderlying(_amount);
     }
 
     /**
@@ -465,9 +462,17 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * It takes into account both the funds in hand, plus the funds in the lendingPool.
      */
     function balanceOf() public view override returns (uint256) {
+        return balanceOfPool() + balanceOfWant();
+    }
+
+    function balanceOfWant() public view returns (uint256) {
+        return IERC20Upgradeable(want).balanceOf(address(this));
+    }
+
+    function balanceOfPool() public view returns (uint256) {
         (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
         uint256 realSupply = supply - borrow;
-        return realSupply + IERC20Upgradeable(want).balanceOf(address(this));
+        return realSupply;
     }
 
     /**
