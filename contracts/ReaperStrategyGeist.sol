@@ -32,7 +32,6 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
 
     uint256 public targetLtv; // in hundredths of percent, 8000 = 80%
     uint256 public maxDeleverageLoopIterations;
-    uint256 public withdrawSlippageTolerance; // basis points precision, 50 = 0.5%
 
     /**
      * 0 - no flash loan in progress
@@ -89,7 +88,6 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     ) public initializer {
         __ReaperBaseStrategy_init(_vault, want, _feeRemitters, _strategists, _multisigRoles);
         maxDeleverageLoopIterations = 10;
-        withdrawSlippageTolerance = 50;
         minLeverageAmount = 1000;
         geistToWftmPath = [GEIST, WFTM];
 
@@ -126,14 +124,17 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         override
         returns (uint256 liquidatedAmount, uint256 loss)
     {
-        // uint256 wantBal = IERC20Upgradeable(want).balanceOf(address(this));
-        // if (wantBal < _amountNeeded) {
-        //     _withdraw(_amountNeeded - wantBal);
-        //     liquidatedAmount = IERC20Upgradeable(want).balanceOf(address(this));
-        // } else {
-        //     liquidatedAmount = _amountNeeded;
-        // }
-        // loss = _amountNeeded - liquidatedAmount;
+        uint256 wantBal = IERC20Upgradeable(want).balanceOf(address(this));
+        if (wantBal < _amountNeeded) {
+            _withdraw(_amountNeeded - wantBal);
+            liquidatedAmount = IERC20Upgradeable(want).balanceOf(address(this));
+        } else {
+            liquidatedAmount = _amountNeeded;
+        }
+
+        if (_amountNeeded > liquidatedAmount) {
+            loss = _amountNeeded - liquidatedAmount;
+        }
     }
 
     function _liquidateAllPositions() internal override returns (uint256 amountFreed) {
@@ -230,32 +231,27 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     /**
      * @dev Withdraws funds and sends them back to the vault.
      */
-    // function withdraw(uint256 _amount, bool) external override {
-    //     require(msg.sender == vault, "!vault");
-    //     require(_amount != 0, "invalid amount");
-    //     require(_amount <= balanceOf(), "invalid amount");
+    function _withdraw(uint256 _amount) internal {
+        if (_amount == 0) {
+            return;
+        }
+        require(_amount <= balanceOf(), "invalid amount");
 
-    //     uint256 wantBal = IERC20Upgradeable(want).balanceOf(address(this));
-    //     if (_amount <= wantBal) {
-    //         IERC20Upgradeable(want).safeTransfer(vault, _amount);
-    //         return;
-    //     }
+        uint256 remaining = _amount - wantBal;
+        (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
+        supply -= remaining;
+        uint256 postWithdrawLtv = supply != 0 ? (borrow * PERCENT_DIVISOR) / supply : 0;
 
-    //     uint256 remaining = _amount - wantBal;
-    //     (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
-    //     supply -= remaining;
-    //     uint256 postWithdrawLtv = supply != 0 ? (borrow * PERCENT_DIVISOR) / supply : 0;
-
-    //     if (postWithdrawLtv > maxLtv) {
-    //         _delever(remaining);
-    //         _withdrawAndSendToVault(remaining, _amount);
-    //     } else if (postWithdrawLtv < targetLtv) {
-    //         _withdrawAndSendToVault(remaining, _amount);
-    //         _leverUpMax();
-    //     } else {
-    //         _withdrawAndSendToVault(remaining, _amount);
-    //     }
-    // }
+        if (postWithdrawLtv > maxLtv) {
+            _delever(remaining);
+            _withdrawUnderlying(remaining);
+        } else if (postWithdrawLtv < targetLtv) {
+            _withdrawUnderlying(remaining);
+            _leverUpMax();
+        } else {
+            _withdrawUnderlying(remaining);
+        }
+    }
 
     /**
      * @dev Delevers by manipulating supply/borrow such that {_withdrawAmount} can
@@ -308,23 +304,6 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         if (desiredBorrow > borrow + minLeverageAmount) {
             _initFlashLoan(desiredBorrow - borrow, INTEREST_RATE_MODE_VARIABLE, DEPOSIT_FL_IN_PROGRESS);
         }
-    }
-
-    /**
-     * @dev Withdraws {_withdrawAmount} from pool and attempts to send {_vaultExpecting} to vault.
-     */
-    function _withdrawAndSendToVault(uint256 _withdrawAmount, uint256 _vaultExpecting) internal {
-        _withdrawUnderlying(_withdrawAmount);
-
-        uint256 wantBal = IERC20Upgradeable(want).balanceOf(address(this));
-        if (wantBal < _vaultExpecting) {
-            require(
-                wantBal >= (_vaultExpecting * (PERCENT_DIVISOR - withdrawSlippageTolerance)) / PERCENT_DIVISOR,
-                "withdraw: outside slippage tolerance!"
-            );
-        }
-
-        IERC20Upgradeable(want).safeTransfer(vault, MathUpgradeable.min(wantBal, _vaultExpecting));
     }
 
     /**
@@ -493,22 +472,17 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
 
     /**
      * @dev Updates target LTV (safely), maximum iterations for the
-     *      deleveraging loop, slippage tolerance (when withdrawing),
-     *      Can only be called by strategist or owner.
+     *      deleveraging loop, can only be called by strategist or owner.
      */
     function setLeverageParams(
         uint256 _newTargetLtv,
         uint256 _newMaxLtv,
         uint256 _newMaxDeleverageLoopIterations,
-        uint256 _newWithdrawSlippageTolerance,
         uint256 _newMinLeverageAmount
     ) external {
         _atLeastRole(STRATEGIST);
         _safeUpdateTargetLtv(_newTargetLtv, _newMaxLtv);
         maxDeleverageLoopIterations = _newMaxDeleverageLoopIterations;
-
-        require(_newWithdrawSlippageTolerance <= MAX_WITHDRAW_SLIPPAGE_TOLERANCE, "invalid slippage!");
-        withdrawSlippageTolerance = _newWithdrawSlippageTolerance;
         minLeverageAmount = _newMinLeverageAmount;
     }
 
