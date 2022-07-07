@@ -344,6 +344,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * @dev Vests {GEIST} tokens, withdraws them immediately (for 50% penalty), swaps them to {WFTM}.
      */
     function _processGeistVestsAndSwapToFtm() internal {
+        console.log("_processGeistVestsAndSwapToFtm()");
         // vest unvested tokens
         IChefIncentivesController(GEIST_INCENTIVES_CONTROLLER).claim(address(this), rewardClaimingTokens);
 
@@ -354,10 +355,12 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         // "amount" might be 1 wei higher than "penalty" due to rounding
         // which causes withdraw(amount) to fail. Hence we take the min.
         (uint256 amount, uint256 penaltyAmount) = stakingContract.withdrawableBalance(address(this));
-        stakingContract.withdraw(MathUpgradeable.min(amount, penaltyAmount));
-
-        uint256 geistBalance = IERC20Upgradeable(GEIST).balanceOf(address(this));
-        _swap(geistBalance, geistToWftmPath);
+        uint256 withdrawAmount = MathUpgradeable.min(amount, penaltyAmount);
+        if (withdrawAmount != 0) {
+            stakingContract.withdraw(withdrawAmount);
+            uint256 geistBalance = IERC20Upgradeable(GEIST).balanceOf(address(this));
+            _swap(geistBalance, geistToWftmPath);
+        }
     }
 
     /**
