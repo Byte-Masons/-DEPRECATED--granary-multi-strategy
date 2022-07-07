@@ -110,15 +110,15 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     }
 
     function _adjustPosition(uint256 _debt) internal override {
-        // if (emergencyExit) {
-        //     return;
-        // }
+        if (emergencyExit) {
+            return;
+        }
 
-        // uint256 wantBalance = balanceOfWant();
-        // if (wantBalance > _debt) {
-        //     uint256 toReinvest = wantBalance - _debt;
-        //     _deposit(toReinvest);
-        // }
+        uint256 wantBalance = balanceOfWant();
+        if (wantBalance > _debt) {
+            uint256 toReinvest = wantBalance - _debt;
+            _deposit(toReinvest);
+        }
     }
 
     function _liquidatePosition(uint256 _amountNeeded)
@@ -212,21 +212,20 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * @dev Function that puts the funds to work.
      * It gets called whenever someone deposits in the strategy's vault contract.
      */
-    // function deposit() public override {
-    //     uint256 wantBal = IERC20Upgradeable(want).balanceOf(address(this));
-    //     if (wantBal != 0) {
-    //         LENDING_POOL().deposit(want, wantBal, address(this), LENDER_REFERRAL_CODE_NONE);
-    //     }
+    function _deposit(uint256 toReinvest) internal {
+        if (toReinvest != 0) {
+            LENDING_POOL().deposit(want, toReinvest, address(this), LENDER_REFERRAL_CODE_NONE);
+        }
 
-    //     (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
-    //     uint256 currentLtv = supply != 0 ? (borrow * PERCENT_DIVISOR) / supply : 0;
+        (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
+        uint256 currentLtv = supply != 0 ? (borrow * PERCENT_DIVISOR) / supply : 0;
 
-    //     if (currentLtv > maxLtv) {
-    //         _delever(0);
-    //     } else if (currentLtv < targetLtv) {
-    //         _leverUpMax();
-    //     }
-    // }
+        if (currentLtv > maxLtv) {
+            _delever(0);
+        } else if (currentLtv < targetLtv) {
+            _leverUpMax();
+        }
+    }
 
     /**
      * @dev Withdraws funds and sends them back to the vault.
