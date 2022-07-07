@@ -86,13 +86,12 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         uint256 _targetLtv,
         uint256 _maxLtv
     ) public initializer {
+        gWant = _gWant;
+        want = _gWant.UNDERLYING_ASSET_ADDRESS();
         __ReaperBaseStrategy_init(_vault, want, _feeRemitters, _strategists, _multisigRoles);
         maxDeleverageLoopIterations = 10;
         minLeverageAmount = 1000;
         geistToWftmPath = [GEIST, WFTM];
-
-        gWant = _gWant;
-        want = _gWant.UNDERLYING_ASSET_ADDRESS();
 
         if (address(want) == WFTM) {
             wftmToWantPath = [WFTM];
