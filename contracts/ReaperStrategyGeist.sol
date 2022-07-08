@@ -72,6 +72,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
 
     uint256 public maxLtv; // in hundredths of percent, 8000 = 80%
     uint256 public minLeverageAmount;
+    uint256 public constant LTV_SAFETY_ZONE = 9800;
 
     /**
      * @dev Initializes the strategy. Sets parameters, saves routes, and gives allowances.
@@ -501,7 +502,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         (, uint256 ltv, , , , , , , , ) = IAaveProtocolDataProvider(GEIST_DATA_PROVIDER).getReserveConfigurationData(
             address(want)
         );
-        require(_newMaxLtv <= ltv, "maxLtv not safe");
+        require(_newMaxLtv <= ltv * LTV_SAFETY_ZONE / PERCENT_DIVISOR, "maxLtv not safe");
         require(_newTargetLtv <= _newMaxLtv, "targetLtv must <= maxLtv");
         maxLtv = _newMaxLtv;
         targetLtv = _newTargetLtv;

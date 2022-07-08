@@ -148,7 +148,7 @@ describe('Vaults', function () {
     await want.connect(wantHolder).approve(vault.address, ethers.constants.MaxUint256);
   });
 
-  xdescribe('Deploying the vault and strategy', function () {
+  describe('Deploying the vault and strategy', function () {
     it('should initiate vault with a 0 balance', async function () {
       const assets = ethers.utils.parseEther('1');
       const totalBalance = await vault.totalAssets();
@@ -250,7 +250,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Vault Tests', function () {
+  describe('Vault Tests', function () {
     it('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const vaultBalance = await vault.totalAssets();
