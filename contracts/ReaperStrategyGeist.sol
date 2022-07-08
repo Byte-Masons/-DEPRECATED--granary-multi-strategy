@@ -64,11 +64,11 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * @dev Paths used to swap tokens:
      * {wftmToWantPath} - to swap {WFTM} to {want}
      * {geistToWftmPath} - to swap {GEIST} to {WFTM}
-     * {wftmToDaiRoute} - Route we take to get from {WFTM} into {DAI}.
+     * {wftmToDaiPath} - Path we take to get from {WFTM} into {DAI}.
      */
     address[] public wftmToWantPath;
     address[] public geistToWftmPath;
-    address[] public wftmToDaiRoute;
+    address[] public wftmToDaiPath;
 
     uint256 public maxLtv; // in hundredths of percent, 8000 = 80%
     uint256 public minLeverageAmount;
@@ -92,6 +92,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         maxDeleverageLoopIterations = 10;
         minLeverageAmount = 1000;
         geistToWftmPath = [GEIST, WFTM];
+        wftmToDaiPath = [WFTM, DAI];
 
         if (address(want) == WFTM) {
             wftmToWantPath = [WFTM];
@@ -234,7 +235,6 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         if (_amount == 0) {
             return;
         }
-        require(_amount <= balanceOf(), "invalid amount");
 
         uint256 wantBal = balanceOfWant();
         uint256 remaining = _amount - wantBal;
@@ -344,7 +344,6 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * @dev Vests {GEIST} tokens, withdraws them immediately (for 50% penalty), swaps them to {WFTM}.
      */
     function _processGeistVestsAndSwapToFtm() internal {
-        console.log("_processGeistVestsAndSwapToFtm()");
         // vest unvested tokens
         IChefIncentivesController(GEIST_INCENTIVES_CONTROLLER).claim(address(this), rewardClaimingTokens);
 
@@ -372,7 +371,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
 
         IERC20Upgradeable dai = IERC20Upgradeable(DAI);
         uint256 daiBalanceBefore = dai.balanceOf(address(this));
-        _swap(wftmFee, wftmToDaiRoute);
+        _swap(wftmFee, wftmToDaiPath);
         uint256 daiBalanceAfter = dai.balanceOf(address(this));
         
         uint256 daiFee = daiBalanceAfter - daiBalanceBefore;
