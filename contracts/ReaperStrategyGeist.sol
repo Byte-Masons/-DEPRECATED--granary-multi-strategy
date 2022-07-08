@@ -105,7 +105,6 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         rewardClaimingTokens = [address(_gWant), vToken];
 
         _safeUpdateTargetLtv(_targetLtv, _maxLtv);
-        _giveAllowances();
     }
 
     function _adjustPosition(uint256 _debt) internal override {
@@ -205,6 +204,11 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         // simply deposit everything we have
         // lender will automatically open a variable debt position
         // since flash loan was requested with interest rate mode VARIABLE
+        address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
+        IERC20Upgradeable(want).safeIncreaseAllowance(
+            lendingPoolAddress,
+            balanceOfWant()
+        );
         LENDING_POOL().deposit(address(want), balanceOfWant(), address(this), LENDER_REFERRAL_CODE_NONE);
 
         return true;
@@ -216,6 +220,11 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      */
     function _deposit(uint256 toReinvest) internal {
         if (toReinvest != 0) {
+            address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
+            IERC20Upgradeable(want).safeIncreaseAllowance(
+                lendingPoolAddress,
+                balanceOfWant()
+            );
             LENDING_POOL().deposit(want, toReinvest, address(this), LENDER_REFERRAL_CODE_NONE);
         }
 
@@ -289,6 +298,11 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
 
         ILendingPool pool = LENDING_POOL();
         pool.withdraw(address(want), allowance, address(this));
+        address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
+        IERC20Upgradeable(want).safeIncreaseAllowance(
+            lendingPoolAddress,
+            allowance
+        );
         pool.repay(address(want), allowance, INTEREST_RATE_MODE_VARIABLE, address(this));
 
         return allowance;
@@ -506,17 +520,5 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         require(_newTargetLtv <= _newMaxLtv, "targetLtv must <= maxLtv");
         maxLtv = _newMaxLtv;
         targetLtv = _newTargetLtv;
-    }
-
-    /**
-     * @dev Gives all the necessary allowances to:
-     *      - deposit {want} into lending pool
-     *      - swap {GEIST} rewards to {WFTM}
-     *      - swap {WFTM} to {want}
-     */
-    function _giveAllowances() internal {
-        address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
-        IERC20Upgradeable(want).safeApprove(lendingPoolAddress, 0);
-        IERC20Upgradeable(want).safeApprove(lendingPoolAddress, type(uint256).max);
     }
 }
