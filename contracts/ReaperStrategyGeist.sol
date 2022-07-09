@@ -246,20 +246,18 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
             return;
         }
 
-        uint256 wantBal = balanceOfWant();
-        uint256 remaining = _amount - wantBal;
         (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
-        supply -= remaining;
+        supply -= _amount;
         uint256 postWithdrawLtv = supply != 0 ? (borrow * PERCENT_DIVISOR) / supply : 0;
 
         if (postWithdrawLtv > maxLtv) {
-            _delever(remaining);
-            _withdrawUnderlying(remaining);
+            _delever(_amount);
+            _withdrawUnderlying(_amount);
         } else if (postWithdrawLtv < targetLtv) {
-            _withdrawUnderlying(remaining);
+            _withdrawUnderlying(_amount);
             _leverUpMax();
         } else {
-            _withdrawUnderlying(remaining);
+            _withdrawUnderlying(_amount);
         }
     }
 
