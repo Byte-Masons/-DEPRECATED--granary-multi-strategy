@@ -17,11 +17,9 @@ const moveBlocksForward = async (blocks) => {
   }
 };
 
-const toWantUnit = (num, decimals) => {
-  if (decimals) {
-    return ethers.BigNumber.from(num * 10 ** decimals);
-  }
-  return ethers.utils.parseEther(num);
+const toWantUnit = (num) => {
+  const decimals = 6;
+  return ethers.BigNumber.from(num * 10 ** decimals);
 };
 
 describe('Vaults', function () {
@@ -45,11 +43,11 @@ describe('Vaults', function () {
   const maintainerAddress = '0x81876677843D00a7D792E1617459aC2E93202576';
   const wftmAddress = '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83';
   const daiAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
-  const wantAddress = wftmAddress;
-  const gWant = '0x39b3bd37208cbade74d0fcbdbb12d606295b430a';
-  const targetLtv = 4800;
+  const wantAddress = '0x049d68029688eAbF473097a2fC38ef61633A3C7A';
+  const gWant = '0x940F41F0ec9ba1A34CF001cc03347ac092F5F6B5';
+  const targetLtv = 7800;
 
-  const wantHolderAddr = '0x431e81e5dfb5a24541b5ff8762bdef3f32f96354';
+  const wantHolderAddr = '0x4188663a85c92eea35b5ad3aa5ca7ceb237c6fe9';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
 
   let owner;
@@ -71,7 +69,7 @@ describe('Vaults', function () {
         {
           forking: {
             jsonRpcUrl: 'https://rpcapi-tracing.fantom.network/',
-            blockNumber: 40582443,
+            blockNumber: 42385237,
           },
         },
       ],
@@ -134,7 +132,7 @@ describe('Vaults', function () {
         [superAdminAddress, adminAddress, guardianAddress],
         gWant,
         targetLtv,
-        targetLtv + 100,
+        targetLtv + 40,
       ],
       {kind: 'uups'},
     );
@@ -158,7 +156,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Strategy Access control tests', function () {
+  describe('Strategy Access control tests', function () {
     it('unassignedRole has no privileges', async function () {
       await expect(strategy.connect(unassignedRole).setEmergencyExit()).to.be.reverted;
     });
@@ -198,7 +196,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Vault Access control tests', function () {
+  describe('Vault Access control tests', function () {
     it('unassignedRole has no privileges', async function () {
       await expect(vault.connect(unassignedRole).addStrategy(strategy.address, 1000)).to.be.reverted;
 
@@ -311,7 +309,7 @@ describe('Vaults', function () {
 
     it('should allow small withdrawal', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
-      const depositAmount = toWantUnit('0.0000001');
+      const depositAmount = toWantUnit('0.001');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       await strategy.harvest();
 
@@ -336,7 +334,7 @@ describe('Vaults', function () {
 
     it('should handle small deposit + redeem', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
-      const depositAmount = toWantUnit('0.000001');
+      const depositAmount = toWantUnit('0.001');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       await strategy.harvest();
 
@@ -510,7 +508,7 @@ describe('Vaults', function () {
       await vault.connect(wantHolder).mint(depositShareIncrease, wantHolderAddr);
       userBalanceAfterMint = await want.balanceOf(wantHolderAddr);
       const mintedAssets = userBalance.sub(userBalanceAfterMint);
-      const allowedInaccuracy = 10;
+      const allowedInaccuracy = 1000;
       expect(depositAmount).to.be.closeTo(mintedAssets, allowedInaccuracy);
     });
 
@@ -908,7 +906,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Vault<>Strat accounting', function () {
+  describe('Vault<>Strat accounting', function () {
     xit('Strat gets more money when it flows in', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('500'), wantHolderAddr);
       await strategy.harvest();
@@ -976,15 +974,15 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Emergency scenarios', function () {
+  describe('Emergency scenarios', function () {
     it('Vault should handle emergency shutdown', async function () {
       await vault.connect(wantHolder).deposit(toWantUnit('1000'), wantHolderAddr);
       await strategy.harvest();
       await moveTimeForward(3600);
       let vaultBalance = await want.balanceOf(vault.address);
-      expect(vaultBalance).to.equal(ethers.utils.parseEther('100'));
+      expect(vaultBalance).to.equal(toWantUnit('100'));
       let stratBalance = await strategy.balanceOf();
-      expectedStrategyBalance = ethers.utils.parseEther('900');
+      expectedStrategyBalance = toWantUnit('900');
       smallDifference = expectedStrategyBalance.div(1e12);
       isSmallBalanceDifference = expectedStrategyBalance.sub(stratBalance).lt(smallDifference);
       expect(isSmallBalanceDifference).to.equal(true);
@@ -992,7 +990,7 @@ describe('Vaults', function () {
       await vault.setEmergencyShutdown(true);
       await strategy.harvest();
       vaultBalance = await want.balanceOf(vault.address);
-      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('1000'));
+      expect(vaultBalance).to.be.gte(toWantUnit('1000'));
       stratBalance = await strategy.balanceOf();
       smallDifference = vaultBalance.div(1e12);
       isSmallBalanceDifference = stratBalance.lt(smallDifference);
@@ -1004,9 +1002,9 @@ describe('Vaults', function () {
       await strategy.harvest();
       await moveTimeForward(3600);
       let vaultBalance = await want.balanceOf(vault.address);
-      expect(vaultBalance).to.equal(ethers.utils.parseEther('100'));
+      expect(vaultBalance).to.equal(toWantUnit('100'));
       let stratBalance = await strategy.balanceOf();
-      let expectedStrategyBalance = ethers.utils.parseEther('900');
+      let expectedStrategyBalance = toWantUnit('900');
       let smallDifference = expectedStrategyBalance.div(1e12);
       let isSmallBalanceDifference = expectedStrategyBalance.sub(stratBalance).lt(smallDifference);
       expect(isSmallBalanceDifference).to.equal(true);
@@ -1014,7 +1012,7 @@ describe('Vaults', function () {
       await vault.setEmergencyShutdown(true);
       await strategy.harvest();
       vaultBalance = await want.balanceOf(vault.address);
-      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('1000'));
+      expect(vaultBalance).to.be.gte(toWantUnit('1000'));
       stratBalance = await strategy.balanceOf();
       smallDifference = vaultBalance.div(1e12);
       isSmallBalanceDifference = stratBalance.lt(smallDifference);
