@@ -45,11 +45,11 @@ describe('Vaults', function () {
   const maintainerAddress = '0x81876677843D00a7D792E1617459aC2E93202576';
   const wftmAddress = '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83';
   const daiAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
-  const wantAddress = wftmAddress;
-  const gWant = '0x39b3bd37208cbade74d0fcbdbb12d606295b430a';
-  const targetLtv = 4800;
+  const wantAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
+  const gWant = '0x07E6332dD090D287d3489245038daF987955DCFB';
+  const targetLtv = 7300;
 
-  const wantHolderAddr = '0x431e81e5dfb5a24541b5ff8762bdef3f32f96354';
+  const wantHolderAddr = '0x4188663a85c92eea35b5ad3aa5ca7ceb237c6fe9';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
 
   let owner;
@@ -71,7 +71,7 @@ describe('Vaults', function () {
         {
           forking: {
             jsonRpcUrl: 'https://rpcapi-tracing.fantom.network/',
-            blockNumber: 40582443,
+            blockNumber: 42365643,
           },
         },
       ],
@@ -134,7 +134,7 @@ describe('Vaults', function () {
         [superAdminAddress, adminAddress, guardianAddress],
         gWant,
         targetLtv,
-        targetLtv + 100,
+        targetLtv + 50,
       ],
       {kind: 'uups'},
     );
