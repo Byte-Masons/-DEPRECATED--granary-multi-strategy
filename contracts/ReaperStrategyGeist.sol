@@ -75,6 +75,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     uint256 public maxLtv; // in hundredths of percent, 8000 = 80%
     uint256 public minLeverageAmount;
     uint256 public constant LTV_SAFETY_ZONE = 9800;
+    uint256 public minWftmToSell;
 
     /**
      * @dev Initializes the strategy. Sets parameters, saves routes, and gives allowances.
@@ -96,6 +97,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         minLeverageAmount = 1000;
         geistToWftmPath = [GEIST, WFTM];
         wftmToDaiPath = [WFTM, DAI];
+        minWftmToSell = 5 * 1e13;
 
         if (address(want) == WFTM) {
             wftmToWantPath = [WFTM];
@@ -409,7 +411,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      */
     function _convertWftmToWant() internal {
         uint256 wftmBal = IERC20Upgradeable(WFTM).balanceOf(address(this));
-        if (wftmBal != 0 && wftmToWantPath.length > 1) {
+        if (wftmBal >= minWftmToSell && wftmToWantPath.length > 1) {
             _swap(wftmBal, wftmToWantPath);
         }
     }
@@ -520,5 +522,13 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         require(_newTargetLtv <= _newMaxLtv, "targetLtv must <= maxLtv");
         maxLtv = _newMaxLtv;
         targetLtv = _newTargetLtv;
+    }
+
+    /**
+     * @dev Sets the minimum wftm that will be sold (too little causes revert from Uniswap)
+     */
+    function setMinWftmToSell(uint256 _minWftmToSell) external {
+        _atLeastRole(STRATEGIST);
+        minWftmToSell = _minWftmToSell;
     }
 }
