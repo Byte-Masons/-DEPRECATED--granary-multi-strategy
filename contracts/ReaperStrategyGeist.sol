@@ -11,6 +11,7 @@ import "./interfaces/IMultiFeeDistribution.sol";
 import "./interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
+import {FixedPointMathLib} from "./library/FixedPointMathLib.sol";
 
 pragma solidity 0.8.11;
 
@@ -19,6 +20,7 @@ pragma solidity 0.8.11;
  */
 contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     using SafeERC20Upgradeable for IERC20Upgradeable;
+    using FixedPointMathLib for uint256;
 
     // 3rd-party contract addresses
     address public constant UNI_ROUTER = address(0xF491e7B69E4244ad4002BC14e878a34207E38c29);
@@ -325,7 +327,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      */
     function _withdrawUnderlying(uint256 _withdrawAmount) internal {
         (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
-        uint256 necessarySupply = maxLtv != 0 ? (borrow * PERCENT_DIVISOR) / maxLtv : 0; // use maxLtv instead of targetLtv here
+        uint256 necessarySupply = maxLtv != 0 ? borrow.mulDivUp(PERCENT_DIVISOR, maxLtv) : 0; // use maxLtv instead of targetLtv here
         require(supply > necessarySupply, "can't withdraw anything!");
 
         uint256 withdrawable = supply - necessarySupply;
