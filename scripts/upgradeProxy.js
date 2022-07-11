@@ -1,7 +1,6 @@
 async function main() {
-  const stratFactory = await ethers.getContractFactory('ReaperAutoCompoundSolidexFarmer');
-  const stratContract = await hre.upgrades.upgradeProxy('0x3630a380F320EA77284Ed03D09B4C73D1351C41e', stratFactory, {
-    call: {fn: 'postUpgradeLP0Allowance'},
+  const stratFactory = await ethers.getContractFactory('ReaperStrategyGeist');
+  const stratContract = await hre.upgrades.upgradeProxy('0xB85e3e31cC226218bFc3a43DE181370CfE3F96FA', stratFactory, {
     timeout: 0,
   });
   console.log('Strategy upgraded!');
