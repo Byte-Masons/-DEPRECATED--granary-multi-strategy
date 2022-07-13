@@ -8,7 +8,7 @@
     },
     {
       "address": "0x8198f5d8F8CfFE8f9C413d98a0A55aEB8ab9FbB7",
-      "txHash": "0x20106bf6392d3169181588b40bd6f47a531ab1fc38e29f54f8efa13869345356",
+      "txHash": "0x2b21bdbc2291dd6a9217e53071cab4e0c98e27d9156011eb945bff8cc655f09f",
       "kind": "uups"
     }
   ],
@@ -922,9 +922,9 @@
         }
       }
     },
-    "d4664a73a9116c4cf7199c9ba0f3f332856e995d592b1caf8f7a379c6c0d93d8": {
+    "bae3d361fa7b7e5f9601a5746e73ab69e754ea3c754e3a669ce15ea545506ea4": {
       "address": "0x36b58F5C1969B7b6591D752ea6F5486D069010AB",
-      "txHash": "0x120412269d6304c7146d69eb0d356778fc4af66d9463d43df23a453715243502",
+      "txHash": "0x3fea6df6e9f7126ad42d27ffb2f5dd27bba3e09a534b9c06694f68f37b9310c9",
       "layout": {
         "storage": [
           {
@@ -1108,7 +1108,7 @@
             "label": "gWant",
             "offset": 0,
             "slot": "312",
-            "type": "t_contract(IAToken)11748",
+            "type": "t_contract(IAToken)11761",
             "contract": "ReaperStrategyGeist",
             "src": "contracts\\ReaperStrategyGeist.sol:33"
           },
@@ -1214,7 +1214,7 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(IAToken)11748": {
+          "t_contract(IAToken)11761": {
             "label": "contract IAToken",
             "numberOfBytes": "20"
           },
