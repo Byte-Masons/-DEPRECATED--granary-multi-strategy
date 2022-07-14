@@ -1,5 +1,16 @@
 [
   {
+    "inputs":[
+      {
+        "internalType":"address",
+        "name":"emissionManager",
+        "type":"address"
+      }
+    ],
+    "stateMutability":"nonpayable",
+    "type":"constructor"
+  },
+  {
     "anonymous":false,
     "inputs":[
       {
@@ -9,21 +20,9 @@
         "type":"address"
       },
       {
-        "indexed":true,
-        "internalType":"address",
-        "name":"reward",
-        "type":"address"
-      },
-      {
         "indexed":false,
         "internalType":"uint256",
         "name":"emission",
-        "type":"uint256"
-      },
-      {
-        "indexed":false,
-        "internalType":"uint256",
-        "name":"distributionEnd",
         "type":"uint256"
       }
     ],
@@ -37,12 +36,6 @@
         "indexed":true,
         "internalType":"address",
         "name":"asset",
-        "type":"address"
-      },
-      {
-        "indexed":true,
-        "internalType":"address",
-        "name":"reward",
         "type":"address"
       },
       {
@@ -78,19 +71,13 @@
     "anonymous":false,
     "inputs":[
       {
-        "indexed":true,
-        "internalType":"address",
-        "name":"previousOwner",
-        "type":"address"
-      },
-      {
-        "indexed":true,
-        "internalType":"address",
-        "name":"newOwner",
-        "type":"address"
+        "indexed":false,
+        "internalType":"uint256",
+        "name":"newDistributionEnd",
+        "type":"uint256"
       }
     ],
-    "name":"OwnershipTransferred",
+    "name":"DistributionEndUpdated",
     "type":"event"
   },
   {
@@ -103,16 +90,16 @@
         "type":"address"
       },
       {
-        "indexed":true,
-        "internalType":"address",
-        "name":"reward",
-        "type":"address"
-      },
-      {
         "indexed":false,
         "internalType":"uint256",
         "name":"amount",
         "type":"uint256"
+      },
+      {
+        "indexed":false,
+        "internalType":"address",
+        "name":"rewardToken",
+        "type":"address"
       }
     ],
     "name":"RewardsAccrued",
@@ -130,17 +117,11 @@
       {
         "indexed":true,
         "internalType":"address",
-        "name":"reward",
-        "type":"address"
-      },
-      {
-        "indexed":true,
-        "internalType":"address",
         "name":"to",
         "type":"address"
       },
       {
-        "indexed":false,
+        "indexed":true,
         "internalType":"address",
         "name":"claimer",
         "type":"address"
@@ -184,12 +165,6 @@
         "type":"address"
       },
       {
-        "indexed":true,
-        "internalType":"address",
-        "name":"reward",
-        "type":"address"
-      },
-      {
         "indexed":false,
         "internalType":"uint256",
         "name":"index",
@@ -202,88 +177,103 @@
   {
     "inputs":[
       {
-        "internalType":"address[]",
-        "name":"assets",
-        "type":"address[]"
-      },
-      {
         "internalType":"address",
-        "name":"to",
+        "name":"rewardToken",
         "type":"address"
       }
     ],
-    "name":"claimAllRewards",
+    "name":"DISTRIBUTION_END",
     "outputs":[
       {
-        "internalType":"address[]",
-        "name":"rewardTokens",
-        "type":"address[]"
-      },
-      {
-        "internalType":"uint256[]",
-        "name":"claimedAmounts",
-        "type":"uint256[]"
+        "internalType":"uint256",
+        "name":"",
+        "type":"uint256"
       }
     ],
-    "stateMutability":"nonpayable",
+    "stateMutability":"view",
+    "type":"function"
+  },
+  {
+    "inputs":[
+      
+    ],
+    "name":"EMISSION_MANAGER",
+    "outputs":[
+      {
+        "internalType":"address",
+        "name":"",
+        "type":"address"
+      }
+    ],
+    "stateMutability":"view",
+    "type":"function"
+  },
+  {
+    "inputs":[
+      
+    ],
+    "name":"PRECISION",
+    "outputs":[
+      {
+        "internalType":"uint8",
+        "name":"",
+        "type":"uint8"
+      }
+    ],
+    "stateMutability":"view",
     "type":"function"
   },
   {
     "inputs":[
       {
-        "internalType":"address[]",
-        "name":"assets",
-        "type":"address[]"
-      },
-      {
-        "internalType":"address",
-        "name":"user",
-        "type":"address"
-      },
-      {
-        "internalType":"address",
-        "name":"to",
-        "type":"address"
+        "internalType":"uint256",
+        "name":"",
+        "type":"uint256"
       }
     ],
-    "name":"claimAllRewardsOnBehalf",
+    "name":"REWARD_TOKENS",
     "outputs":[
       {
-        "internalType":"address[]",
-        "name":"rewardTokens",
-        "type":"address[]"
-      },
-      {
-        "internalType":"uint256[]",
-        "name":"claimedAmounts",
-        "type":"uint256[]"
+        "internalType":"address",
+        "name":"",
+        "type":"address"
       }
     ],
-    "stateMutability":"nonpayable",
+    "stateMutability":"view",
     "type":"function"
   },
   {
     "inputs":[
       {
-        "internalType":"address[]",
-        "name":"assets",
-        "type":"address[]"
-      }
-    ],
-    "name":"claimAllRewardsToSelf",
-    "outputs":[
-      {
-        "internalType":"address[]",
-        "name":"rewardTokens",
-        "type":"address[]"
+        "internalType":"address",
+        "name":"",
+        "type":"address"
       },
       {
-        "internalType":"uint256[]",
-        "name":"claimedAmounts",
-        "type":"uint256[]"
+        "internalType":"address",
+        "name":"",
+        "type":"address"
       }
     ],
-    "stateMutability":"nonpayable",
+    "name":"assets",
+    "outputs":[
+      {
+        "internalType":"uint104",
+        "name":"emissionPerSecond",
+        "type":"uint104"
+      },
+      {
+        "internalType":"uint104",
+        "name":"index",
+        "type":"uint104"
+      },
+      {
+        "internalType":"uint40",
+        "name":"lastUpdateTimestamp",
+        "type":"uint40"
+      }
+    ],
+    "stateMutability":"view",
     "type":"function"
   },
   {
@@ -305,7 +295,7 @@
       },
       {
         "internalType":"address",
-        "name":"reward",
+        "name":"rewardToken",
         "type":"address"
       }
     ],
@@ -344,7 +334,7 @@
       },
       {
         "internalType":"address",
-        "name":"reward",
+        "name":"rewardToken",
         "type":"address"
       }
     ],
@@ -373,7 +363,7 @@
       },
       {
         "internalType":"address",
-        "name":"reward",
+        "name":"rewardToken",
         "type":"address"
       }
     ],
@@ -391,36 +381,19 @@
   {
     "inputs":[
       {
-        "components":[
-          {
-            "internalType":"uint88",
-            "name":"emissionPerSecond",
-            "type":"uint88"
-          },
-          {
-            "internalType":"uint256",
-            "name":"totalSupply",
-            "type":"uint256"
-          },
-          {
-            "internalType":"uint32",
-            "name":"distributionEnd",
-            "type":"uint32"
-          },
-          {
-            "internalType":"address",
-            "name":"asset",
-            "type":"address"
-          },
-          {
-            "internalType":"address",
-            "name":"reward",
-            "type":"address"
-          }
-        ],
-        "internalType":"struct DistributionTypes.RewardsConfigInput[]",
-        "name":"config",
-        "type":"tuple[]"
+        "internalType":"address[]",
+        "name":"assets",
+        "type":"address[]"
+      },
+      {
+        "internalType":"uint256[]",
+        "name":"emissionsPerSecond",
+        "type":"uint256[]"
+      },
+      {
+        "internalType":"address[]",
+        "name":"rewardTokens",
+        "type":"address[]"
       }
     ],
     "name":"configureAssets",
@@ -433,46 +406,32 @@
   {
     "inputs":[
       {
-        "internalType":"address[]",
-        "name":"assets",
-        "type":"address[]"
-      },
-      {
-        "internalType":"address",
-        "name":"user",
-        "type":"address"
-      }
-    ],
-    "name":"getAllUserRewardsBalance",
-    "outputs":[
-      {
-        "internalType":"address[]",
-        "name":"rewardTokens",
-        "type":"address[]"
-      },
-      {
-        "internalType":"uint256[]",
-        "name":"unclaimedAmounts",
-        "type":"uint256[]"
-      }
-    ],
-    "stateMutability":"view",
-    "type":"function"
-  },
-  {
-    "inputs":[
-      {
         "internalType":"address",
         "name":"asset",
         "type":"address"
+      },
+      {
+        "internalType":"address",
+        "name":"rewardToken",
+        "type":"address"
       }
     ],
-    "name":"getAssetDecimals",
+    "name":"getAssetData",
     "outputs":[
       {
-        "internalType":"uint8",
+        "internalType":"uint256",
         "name":"",
-        "type":"uint8"
+        "type":"uint256"
+      },
+      {
+        "internalType":"uint256",
+        "name":"",
+        "type":"uint256"
+      },
+      {
+        "internalType":"uint256",
+        "name":"",
+        "type":"uint256"
       }
     ],
     "stateMutability":"view",
@@ -501,12 +460,7 @@
     "inputs":[
       {
         "internalType":"address",
-        "name":"asset",
-        "type":"address"
-      },
-      {
-        "internalType":"address",
-        "name":"reward",
+        "name":"rewardToken",
         "type":"address"
       }
     ],
@@ -523,72 +477,28 @@
   },
   {
     "inputs":[
-      
-    ],
-    "name":"getRewardTokens",
-    "outputs":[
       {
         "internalType":"address[]",
-        "name":"",
+        "name":"assets",
         "type":"address[]"
-      }
-    ],
-    "stateMutability":"view",
-    "type":"function"
-  },
-  {
-    "inputs":[
+      },
       {
         "internalType":"address",
-        "name":"asset",
-        "type":"address"
-      }
-    ],
-    "name":"getRewardsByAsset",
-    "outputs":[
-      {
-        "internalType":"address[]",
-        "name":"",
-        "type":"address[]"
-      }
-    ],
-    "stateMutability":"view",
-    "type":"function"
-  },
-  {
-    "inputs":[
-      {
-        "internalType":"address",
-        "name":"asset",
+        "name":"user",
         "type":"address"
       },
       {
         "internalType":"address",
-        "name":"reward",
+        "name":"rewardToken",
         "type":"address"
       }
     ],
-    "name":"getRewardsData",
+    "name":"getRewardsBalance",
     "outputs":[
       {
         "internalType":"uint256",
         "name":"",
         "type":"uint256"
-      },
-      {
-        "internalType":"uint256",
-        "name":"",
-        "type":"uint256"
-      },
-      {
-        "internalType":"uint256",
-        "name":"",
-        "type":"uint256"
-      },
-      {
-        "internalType":"uint256",
-        "name":"",
-        "type":"uint256"
       }
     ],
     "stateMutability":"view",
@@ -598,7 +508,7 @@
     "inputs":[
       {
         "internalType":"address",
-        "name":"reward",
+        "name":"rewardToken",
         "type":"address"
       }
     ],
@@ -627,7 +537,7 @@
       },
       {
         "internalType":"address",
-        "name":"reward",
+        "name":"rewardToken",
         "type":"address"
       }
     ],
@@ -645,46 +555,17 @@
   {
     "inputs":[
       {
-        "internalType":"address[]",
-        "name":"assets",
-        "type":"address[]"
-      },
-      {
         "internalType":"address",
-        "name":"user",
+        "name":"_user",
         "type":"address"
       },
       {
         "internalType":"address",
-        "name":"reward",
+        "name":"rewardToken",
         "type":"address"
       }
     ],
-    "name":"getUserRewardsBalance",
-    "outputs":[
-      {
-        "internalType":"uint256",
-        "name":"",
-        "type":"uint256"
-      }
-    ],
-    "stateMutability":"view",
-    "type":"function"
-  },
-  {
-    "inputs":[
-      {
-        "internalType":"address",
-        "name":"user",
-        "type":"address"
-      },
-      {
-        "internalType":"address",
-        "name":"reward",
-        "type":"address"
-      }
-    ],
-    "name":"getUserUnclaimedRewardsFromStorage",
+    "name":"getUserUnclaimedRewards",
     "outputs":[
       {
         "internalType":"uint256",
@@ -722,32 +603,6 @@
   },
   {
     "inputs":[
-      
-    ],
-    "name":"owner",
-    "outputs":[
-      {
-        "internalType":"address",
-        "name":"",
-        "type":"address"
-      }
-    ],
-    "stateMutability":"view",
-    "type":"function"
-  },
-  {
-    "inputs":[
-      
-    ],
-    "name":"renounceOwnership",
-    "outputs":[
-      
-    ],
-    "stateMutability":"nonpayable",
-    "type":"function"
-  },
-  {
-    "inputs":[
       {
         "internalType":"address",
         "name":"user",
@@ -769,19 +624,14 @@
   {
     "inputs":[
       {
-        "internalType":"address",
-        "name":"asset",
-        "type":"address"
-      },
-      {
-        "internalType":"address",
-        "name":"reward",
-        "type":"address"
-      },
-      {
-        "internalType":"uint32",
+        "internalType":"uint256",
         "name":"distributionEnd",
-        "type":"uint32"
+        "type":"uint256"
+      },
+      {
+        "internalType":"address",
+        "name":"rewardToken",
+        "type":"address"
       }
     ],
     "name":"setDistributionEnd",
@@ -794,17 +644,12 @@
   {
     "inputs":[
       {
-        "internalType":"address",
-        "name":"vault",
-        "type":"address"
-      },
-      {
-        "internalType":"address",
-        "name":"reward",
-        "type":"address"
+        "internalType":"address[]",
+        "name":"rewardTokens",
+        "type":"address[]"
       }
     ],
-    "name":"setRewardsVault",
+    "name":"setRewardTokens",
     "outputs":[
       
     ],
@@ -815,11 +660,16 @@
     "inputs":[
       {
         "internalType":"address",
-        "name":"newOwner",
+        "name":"rewardsVault",
+        "type":"address"
+      },
+      {
+        "internalType":"address",
+        "name":"rewardToken",
         "type":"address"
       }
     ],
-    "name":"transferOwnership",
+    "name":"setRewardsVault",
     "outputs":[
       
     ],

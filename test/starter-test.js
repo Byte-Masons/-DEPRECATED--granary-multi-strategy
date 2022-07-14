@@ -50,17 +50,16 @@ describe('Vaults', function () {
   const daiAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
   const wantAddress = wftmAddress;
   const gWant = '0x98d5105370191D641f32589B35cDa9eCd367C74F';
+  const variableDebtWant = '0x0f7f11AA3C42aaa5e653EbEd07220B4392a976A4';
   const targetLtv = 0;
 
   const wantHolderAddr = '0x431e81e5dfb5a24541b5ff8762bdef3f32f96354';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
 
-  const rewarderOwnerAddr = '0xe027880CEB8114F2e367211dF977899d00e66138';
-  //const rewarderOwnerAddr = '0x33e7CCf4cc3ffC6c53221900D21a3c56422D0E0A';
+  const rewarderOwnerAddr = '0x33e7CCf4cc3ffC6c53221900D21a3c56422D0E0A';
   const oathHolderAddr = '0xeFB7895B2e38eBa4243002DDD2b76965193F13F9';
   const staderHolderAddr = '0x0459287c18076e173320314D360f5500C79dd5Fe';
-  const granaryRewarderAddr = '0x6A0406B8103Ec68EE9A713A073C7bD587c5e04aD';
-  //const granaryRewarderAddr = '0x7780E1A8321BD58BBc76594Db494c7Bfe8e87040';
+  const granaryRewarderAddr = '0x7780E1A8321BD58BBc76594Db494c7Bfe8e87040';
 
   const oathAddr = '0x21ada0d2ac28c3a5fa3cd2ee30882da8812279b6';
   const staderAddr = '0x412a13C109aC30f0dB80AD3Bd1DeFd5D0A6c0Ac6';
@@ -87,7 +86,7 @@ describe('Vaults', function () {
         {
           forking: {
             jsonRpcUrl: 'https://rpcapi-tracing.fantom.network/',
-            blockNumber: 42737345,
+            blockNumber: 42746217,
           },
         },
       ],
@@ -179,16 +178,65 @@ describe('Vaults', function () {
 
     //approving LP token and vault share spend
     await want.connect(wantHolder).approve(vault.address, ethers.constants.MaxUint256);
-    // transfer rewards to the rewarder
-    const oathHolderBalance = await oath.balanceOf(oathHolderAddr);
-    await oath.connect(oathHolder).transfer(granaryRewarderAddr, oathHolderBalance);
 
-    const staderHolderBalance = await stader.balanceOf(staderHolderAddr);
-    await stader.connect(staderHolder).transfer(granaryRewarderAddr, staderHolderBalance);
     // Start reward emissions
     const rewarder = new ethers.Contract(granaryRewarderAddr, incentivesControllerABI, granaryOwner);
-    await rewarder.configureAssets([gWant], [ethers.utils.parseEther('1')], [oathAddr]);
-    await rewarder.configureAssets([gWant], [ethers.utils.parseEther('1')], [staderAddr]);
+    const emissionPerSecond = ethers.utils.parseEther('0.00001');
+    console.log(`emissionPerSecond: ${emissionPerSecond}`);
+    const totalSupply = ethers.utils.parseEther('94976615.274089');
+
+    const blockStartTimestamp = 1657805485;
+    const hour = 3600;
+    const day = 24 * hour;
+    const week = 7 * day;
+    const distributionEnd = blockStartTimestamp + week;
+
+    await owner.sendTransaction({
+      to: rewarderOwnerAddr,
+      value: ethers.utils.parseEther('1'), // Sends exactly 1.0 ether
+    });
+
+    await rewarder.configureAssets([
+      {
+        emissionPerSecond,
+        totalSupply,
+        distributionEnd,
+        asset: gWant,
+        reward: oathAddr,
+      },
+    ]);
+    await rewarder.configureAssets([
+      {
+        emissionPerSecond,
+        totalSupply,
+        distributionEnd,
+        asset: gWant,
+        reward: staderAddr,
+      },
+    ]);
+    await rewarder.configureAssets([
+      {
+        emissionPerSecond,
+        totalSupply,
+        distributionEnd,
+        asset: variableDebtWant,
+        reward: oathAddr,
+      },
+    ]);
+    await rewarder.configureAssets([
+      {
+        emissionPerSecond,
+        totalSupply,
+        distributionEnd,
+        asset: variableDebtWant,
+        reward: staderAddr,
+      },
+    ]);
+
+    await rewarder.setRewardsVault(oathHolderAddr, oathAddr);
+    await rewarder.setRewardsVault(staderHolderAddr, staderAddr);
+    await oath.connect(oathHolder).approve(granaryRewarderAddr, ethers.utils.parseEther('999999999999999'));
+    await stader.connect(staderHolder).approve(granaryRewarderAddr, ethers.utils.parseEther('999999999999999'));
   });
 
   xdescribe('Deploying the vault and strategy', function () {

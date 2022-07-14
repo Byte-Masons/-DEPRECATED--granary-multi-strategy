@@ -6,7 +6,7 @@ import "./interfaces/IAaveProtocolDataProvider.sol";
 import "./interfaces/IFlashLoanReceiver.sol";
 import "./interfaces/ILendingPool.sol";
 import "./interfaces/ILendingPoolAddressesProvider.sol";
-import "./interfaces/IGranaryIncentivesController.sol";
+import "./interfaces/IRewardsController.sol";
 import "./interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
@@ -27,8 +27,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     address public constant UNI_ROUTER = address(0xF491e7B69E4244ad4002BC14e878a34207E38c29);
     address public constant ADDRESSES_PROVIDER_ADDRESS = address(0x8b9D58E2Dc5e9b5275b62b1F30b3c0AC87138130);
     address public constant DATA_PROVIDER = address(0x3132870d08f736505FF13B19199be17629085072);
-    address public constant REWARDER = address(0x6A0406B8103Ec68EE9A713A073C7bD587c5e04aD);
-    //address public constant REWARDER = address(0x7780E1A8321BD58BBc76594Db494c7Bfe8e87040);
+    address public constant REWARDER = address(0x7780E1A8321BD58BBc76594Db494c7Bfe8e87040);
 
     // this strategy's configurable tokens
     IAToken public gWant;
@@ -344,32 +343,13 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     }
 
     /**
-     * @dev Vests {GEIST} tokens, withdraws them immediately (for 50% penalty), swaps them to {WFTM}.
+     * @dev Claim rewards for supply and borrow
      */
     function _claimRewards() internal {
-        console.log("_claimRewards()");
-        // function getRewardsBalance(address[] calldata assets, address user, address rewardToken)
         address[] memory assets = new address[](2);
         assets[0] = address(gWant);
         assets[1] = variableDebtWant;
-        uint256 oathBalance = IGranaryIncentivesController(REWARDER).getRewardsBalance(assets, address(this), OATH);
-        console.log("oathBalance: ", oathBalance);
-        // vest unvested tokens
-        // IChefIncentivesController(GEIST_INCENTIVES_CONTROLLER).claim(address(this), rewardTokens);
-
-        // // withdraw immediately
-        // IMultiFeeDistribution stakingContract = IMultiFeeDistribution(GEIST_STAKING);
-        // // "amount" and "penaltyAmount" would always be the same since
-        // // penalty is 50%. However, sometimes the returned value for
-        // // "amount" might be 1 wei higher than "penalty" due to rounding
-        // // which causes withdraw(amount) to fail. Hence we take the min.
-        // (uint256 amount, uint256 penaltyAmount) = stakingContract.withdrawableBalance(address(this));
-        // uint256 withdrawAmount = MathUpgradeable.min(amount, penaltyAmount);
-        // if (withdrawAmount != 0) {
-        //     stakingContract.withdraw(withdrawAmount);
-        //     uint256 geistBalance = IERC20Upgradeable(GEIST).balanceOf(address(this));
-        //     _swap(geistBalance, geistToWftmPath);
-        // }
+        IRewardsController(REWARDER).claimAllRewardsToSelf(assets);
     }
 
     /**

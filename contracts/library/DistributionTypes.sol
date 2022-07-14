@@ -3,15 +3,17 @@ pragma solidity 0.8.11;
 pragma experimental ABIEncoderV2;
 
 library DistributionTypes {
-  struct AssetConfigInput {
-    uint104 emissionPerSecond;
-    uint256 totalStaked;
-    address underlyingAsset;
+  struct RewardsConfigInput {
+    uint88 emissionPerSecond;
+    uint256 totalSupply;
+    uint32 distributionEnd;
+    address asset;
+    address reward;
   }
 
-  struct UserStakeInput {
+  struct UserAssetInput {
     address underlyingAsset;
-    uint256 stakedByUser;
-    uint256 totalStaked;
+    uint256 userBalance;
+    uint256 totalSupply;
   }
 }

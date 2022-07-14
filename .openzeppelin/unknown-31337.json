@@ -8,7 +8,7 @@
     },
     {
       "address": "0x8198f5d8F8CfFE8f9C413d98a0A55aEB8ab9FbB7",
-      "txHash": "0xc9a0645a832a9c9b26b1c1fd5265aabb74fbe2f2e5cdd63be7c63250a2b45949",
+      "txHash": "0x9b5a2e68ea9e1aa3917f952ffe6d76bdde7993810e72e45ff7d01e31200dbf3a",
       "kind": "uups"
     }
   ],
@@ -922,9 +922,9 @@
         }
       }
     },
-    "1605d25c5886d788c8e1f2db2bf3b095a403b3d3127e8633eb55d5e5952c817d": {
+    "9a298672a60496ee567f9e7e4c7bdff8affc272ecea26b3b9efabcee776519f0": {
       "address": "0x36b58F5C1969B7b6591D752ea6F5486D069010AB",
-      "txHash": "0x6dccf3b999e72613714dc4c7e65528bffe100c3b0e55d2a4af33f735d6c0e0df",
+      "txHash": "0xdbbf3c6d5eb42085e56e497b37e6ad9d0f304a0d7a02c81be0d71348ec1d43cc",
       "layout": {
         "storage": [
           {
@@ -1108,9 +1108,9 @@
             "label": "gWant",
             "offset": 0,
             "slot": "312",
-            "type": "t_contract(IAToken)11734",
+            "type": "t_contract(IAToken)11714",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:34"
+            "src": "contracts\\ReaperStrategyGranary.sol:33"
           },
           {
             "label": "targetLtv",
@@ -1118,7 +1118,7 @@
             "slot": "313",
             "type": "t_uint256",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:37"
+            "src": "contracts\\ReaperStrategyGranary.sol:36"
           },
           {
             "label": "maxDeleverageLoopIterations",
@@ -1126,7 +1126,7 @@
             "slot": "314",
             "type": "t_uint256",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:38"
+            "src": "contracts\\ReaperStrategyGranary.sol:37"
           },
           {
             "label": "flashLoanStatus",
@@ -1134,7 +1134,7 @@
             "slot": "315",
             "type": "t_uint256",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:44"
+            "src": "contracts\\ReaperStrategyGranary.sol:43"
           },
           {
             "label": "rewardTokens",
@@ -1142,7 +1142,7 @@
             "slot": "316",
             "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:65"
+            "src": "contracts\\ReaperStrategyGranary.sol:64"
           },
           {
             "label": "wftmToWantPath",
@@ -1150,7 +1150,7 @@
             "slot": "317",
             "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:72"
+            "src": "contracts\\ReaperStrategyGranary.sol:71"
           },
           {
             "label": "wftmToDaiPath",
@@ -1158,7 +1158,7 @@
             "slot": "318",
             "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:73"
+            "src": "contracts\\ReaperStrategyGranary.sol:72"
           },
           {
             "label": "maxLtv",
@@ -1166,7 +1166,7 @@
             "slot": "319",
             "type": "t_uint256",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:75"
+            "src": "contracts\\ReaperStrategyGranary.sol:74"
           },
           {
             "label": "minLeverageAmount",
@@ -1174,7 +1174,7 @@
             "slot": "320",
             "type": "t_uint256",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:76"
+            "src": "contracts\\ReaperStrategyGranary.sol:75"
           }
         ],
         "types": {
@@ -1206,7 +1206,7 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(IAToken)11734": {
+          "t_contract(IAToken)11714": {
             "label": "contract IAToken",
             "numberOfBytes": "20"
           },
