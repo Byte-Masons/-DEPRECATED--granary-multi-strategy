@@ -46,8 +46,8 @@ describe('Vaults', function () {
   const wftmAddress = '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83';
   const daiAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
   const wantAddress = wftmAddress;
-  const gWant = '0x39b3bd37208cbade74d0fcbdbb12d606295b430a';
-  const targetLtv = 4800;
+  const gWant = '0x98d5105370191D641f32589B35cDa9eCd367C74F';
+  const targetLtv = 0;
 
   const wantHolderAddr = '0x431e81e5dfb5a24541b5ff8762bdef3f32f96354';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
@@ -148,7 +148,7 @@ describe('Vaults', function () {
     await want.connect(wantHolder).approve(vault.address, ethers.constants.MaxUint256);
   });
 
-  describe('Deploying the vault and strategy', function () {
+  xdescribe('Deploying the vault and strategy', function () {
     it('should initiate vault with a 0 balance', async function () {
       const assets = ethers.utils.parseEther('1');
       const totalBalance = await vault.totalAssets();
@@ -250,7 +250,7 @@ describe('Vaults', function () {
     });
   });
 
-  describe('Vault Tests', function () {
+  xdescribe('Vault Tests', function () {
     it('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const vaultBalance = await vault.totalAssets();
@@ -694,9 +694,9 @@ describe('Vaults', function () {
       const initialVaultBalance = await vault.totalAssets();
 
       console.log(initialVaultBalance.toString());
-      await strategy.authorizedDelever(ethers.constants.MaxUint256);
-      await strategy.setLeverageParams(0, 1, 10, 50);
-      console.log((await vault.totalAssets()).toString());
+      // await strategy.authorizedDelever(ethers.constants.MaxUint256);
+      // await strategy.setLeverageParams(0, 1, 10, 50);
+
       await strategy.harvest();
 
       const numHarvests = 5;
@@ -706,6 +706,7 @@ describe('Vaults', function () {
       }
 
       const finalVaultBalance = await vault.totalAssets();
+      console.log(finalVaultBalance);
       const profit = finalVaultBalance.sub(initialVaultBalance);
       console.log(`profit: ${profit}`);
       expect(finalVaultBalance).to.be.gt(initialVaultBalance);

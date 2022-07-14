@@ -16,7 +16,7 @@ import {FixedPointMathLib} from "./library/FixedPointMathLib.sol";
 pragma solidity 0.8.11;
 
 /**
- * @dev This strategy will deposit and leverage a token on Geist to maximize yield
+ * @dev This strategy will deposit and leverage a token on Granary to maximize yield
  */
 contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -24,10 +24,9 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
 
     // 3rd-party contract addresses
     address public constant UNI_ROUTER = address(0xF491e7B69E4244ad4002BC14e878a34207E38c29);
-    address public constant GEIST_ADDRESSES_PROVIDER = address(0x6c793c628Fe2b480c5e6FB7957dDa4b9291F9c9b);
-    address public constant GEIST_DATA_PROVIDER = address(0xf3B0611e2E4D2cd6aB4bb3e01aDe211c3f42A8C3);
-    address public constant GEIST_INCENTIVES_CONTROLLER = address(0x297FddC5c33Ef988dd03bd13e162aE084ea1fE57);
-    address public constant GEIST_STAKING = address(0x49c93a95dbcc9A6A4D8f77E59c038ce5020e82f8);
+    address public constant ADDRESSES_PROVIDER_ADDRESS = address(0x8b9D58E2Dc5e9b5275b62b1F30b3c0AC87138130);
+    address public constant DATA_PROVIDER = address(0x3132870d08f736505FF13B19199be17629085072);
+    address public constant REWARDER = address(0x6A0406B8103Ec68EE9A713A073C7bD587c5e04aD);
 
     // this strategy's configurable tokens
     IAToken public gWant;
@@ -103,7 +102,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
             wftmToWantPath = [WFTM, address(want)];
         }
 
-        (, , address vToken) = IAaveProtocolDataProvider(GEIST_DATA_PROVIDER).getReserveTokensAddresses(address(want));
+        (, , address vToken) = IAaveProtocolDataProvider(DATA_PROVIDER).getReserveTokensAddresses(address(want));
         rewardClaimingTokens = [address(_gWant), vToken];
 
         _safeUpdateTargetLtv(_targetLtv, _maxLtv);
@@ -163,10 +162,10 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
             uint256 repayment
         )
     {
-        _processGeistVestsAndSwapToFtm();
+        _claimRewards();
         callerFee = _chargeFees();
         _convertWftmToWant();
-        
+
         uint256 allocated = IVault(vault).strategies(address(this)).allocated;
         uint256 totalAssets = balanceOf();
         uint256 toFree = _debt;
@@ -185,7 +184,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     }
 
     function ADDRESSES_PROVIDER() public pure override returns (ILendingPoolAddressesProvider) {
-        return ILendingPoolAddressesProvider(GEIST_ADDRESSES_PROVIDER);
+        return ILendingPoolAddressesProvider(ADDRESSES_PROVIDER_ADDRESS);
     }
 
     function LENDING_POOL() public view override returns (ILendingPool) {
@@ -207,10 +206,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         // lender will automatically open a variable debt position
         // since flash loan was requested with interest rate mode VARIABLE
         address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
-        IERC20Upgradeable(want).safeIncreaseAllowance(
-            lendingPoolAddress,
-            balanceOfWant()
-        );
+        IERC20Upgradeable(want).safeIncreaseAllowance(lendingPoolAddress, balanceOfWant());
         LENDING_POOL().deposit(address(want), balanceOfWant(), address(this), LENDER_REFERRAL_CODE_NONE);
 
         return true;
@@ -223,10 +219,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     function _deposit(uint256 toReinvest) internal {
         if (toReinvest != 0) {
             address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
-            IERC20Upgradeable(want).safeIncreaseAllowance(
-                lendingPoolAddress,
-                balanceOfWant()
-            );
+            IERC20Upgradeable(want).safeIncreaseAllowance(lendingPoolAddress, balanceOfWant());
             LENDING_POOL().deposit(want, toReinvest, address(this), LENDER_REFERRAL_CODE_NONE);
         }
 
@@ -286,8 +279,9 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      */
     function _leverDownStep(uint256 _totalBorrowReduction) internal returns (uint256) {
         (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
-        (, , uint256 threshLtv, , , , , , , ) = IAaveProtocolDataProvider(GEIST_DATA_PROVIDER)
-            .getReserveConfigurationData(address(want));
+        (, , uint256 threshLtv, , , , , , , ) = IAaveProtocolDataProvider(DATA_PROVIDER).getReserveConfigurationData(
+            address(want)
+        );
         uint256 threshSupply = (borrow * PERCENT_DIVISOR) / threshLtv;
 
         // don't use 100% of excess supply, leave a smidge
@@ -299,10 +293,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         ILendingPool pool = LENDING_POOL();
         pool.withdraw(address(want), allowance, address(this));
         address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
-        IERC20Upgradeable(want).safeIncreaseAllowance(
-            lendingPoolAddress,
-            allowance
-        );
+        IERC20Upgradeable(want).safeIncreaseAllowance(lendingPoolAddress, allowance);
         pool.repay(address(want), allowance, INTEREST_RATE_MODE_VARIABLE, address(this));
 
         return allowance;
@@ -341,10 +332,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      */
     function _swap(uint256 amount, address[] storage path) internal {
         if (amount != 0) {
-            IERC20Upgradeable(path[0]).safeIncreaseAllowance(
-                UNI_ROUTER,
-                amount
-            );
+            IERC20Upgradeable(path[0]).safeIncreaseAllowance(UNI_ROUTER, amount);
             IUniswapV2Router02(UNI_ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
                 amount,
                 0,
@@ -358,23 +346,23 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     /**
      * @dev Vests {GEIST} tokens, withdraws them immediately (for 50% penalty), swaps them to {WFTM}.
      */
-    function _processGeistVestsAndSwapToFtm() internal {
+    function _claimRewards() internal {
         // vest unvested tokens
-        IChefIncentivesController(GEIST_INCENTIVES_CONTROLLER).claim(address(this), rewardClaimingTokens);
+        // IChefIncentivesController(GEIST_INCENTIVES_CONTROLLER).claim(address(this), rewardClaimingTokens);
 
-        // withdraw immediately
-        IMultiFeeDistribution stakingContract = IMultiFeeDistribution(GEIST_STAKING);
-        // "amount" and "penaltyAmount" would always be the same since
-        // penalty is 50%. However, sometimes the returned value for
-        // "amount" might be 1 wei higher than "penalty" due to rounding
-        // which causes withdraw(amount) to fail. Hence we take the min.
-        (uint256 amount, uint256 penaltyAmount) = stakingContract.withdrawableBalance(address(this));
-        uint256 withdrawAmount = MathUpgradeable.min(amount, penaltyAmount);
-        if (withdrawAmount != 0) {
-            stakingContract.withdraw(withdrawAmount);
-            uint256 geistBalance = IERC20Upgradeable(GEIST).balanceOf(address(this));
-            _swap(geistBalance, geistToWftmPath);
-        }
+        // // withdraw immediately
+        // IMultiFeeDistribution stakingContract = IMultiFeeDistribution(GEIST_STAKING);
+        // // "amount" and "penaltyAmount" would always be the same since
+        // // penalty is 50%. However, sometimes the returned value for
+        // // "amount" might be 1 wei higher than "penalty" due to rounding
+        // // which causes withdraw(amount) to fail. Hence we take the min.
+        // (uint256 amount, uint256 penaltyAmount) = stakingContract.withdrawableBalance(address(this));
+        // uint256 withdrawAmount = MathUpgradeable.min(amount, penaltyAmount);
+        // if (withdrawAmount != 0) {
+        //     stakingContract.withdraw(withdrawAmount);
+        //     uint256 geistBalance = IERC20Upgradeable(GEIST).balanceOf(address(this));
+        //     _swap(geistBalance, geistToWftmPath);
+        // }
     }
 
     /**
@@ -382,13 +370,13 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * Charges fees based on the amount of WFTM gained from reward
      */
     function _chargeFees() internal returns (uint256 callerFee) {
-        uint256 wftmFee = IERC20Upgradeable(WFTM).balanceOf(address(this)) * totalFee / PERCENT_DIVISOR;
+        uint256 wftmFee = (IERC20Upgradeable(WFTM).balanceOf(address(this)) * totalFee) / PERCENT_DIVISOR;
 
         IERC20Upgradeable dai = IERC20Upgradeable(DAI);
         uint256 daiBalanceBefore = dai.balanceOf(address(this));
         _swap(wftmFee, wftmToDaiPath);
         uint256 daiBalanceAfter = dai.balanceOf(address(this));
-        
+
         uint256 daiFee = daiBalanceAfter - daiBalanceBefore;
         if (daiFee != 0) {
             callerFee = (daiFee * callFee) / PERCENT_DIVISOR;
@@ -449,7 +437,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * Borrow is the amount we have taken out on loan against our collateral.
      */
     function getSupplyAndBorrow() public view returns (uint256 supply, uint256 borrow) {
-        (supply, , borrow, , , , , , ) = IAaveProtocolDataProvider(GEIST_DATA_PROVIDER).getUserReserveData(
+        (supply, , borrow, , , , , , ) = IAaveProtocolDataProvider(DATA_PROVIDER).getUserReserveData(
             address(want),
             address(this)
         );
@@ -513,10 +501,10 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      *      - targetLtv is less than or equal to maxLtv
      */
     function _safeUpdateTargetLtv(uint256 _newTargetLtv, uint256 _newMaxLtv) internal {
-        (, uint256 ltv, , , , , , , , ) = IAaveProtocolDataProvider(GEIST_DATA_PROVIDER).getReserveConfigurationData(
+        (, uint256 ltv, , , , , , , , ) = IAaveProtocolDataProvider(DATA_PROVIDER).getReserveConfigurationData(
             address(want)
         );
-        require(_newMaxLtv <= ltv * LTV_SAFETY_ZONE / PERCENT_DIVISOR, "maxLtv not safe");
+        require(_newMaxLtv <= (ltv * LTV_SAFETY_ZONE) / PERCENT_DIVISOR, "maxLtv not safe");
         require(_newTargetLtv <= _newMaxLtv, "targetLtv must <= maxLtv");
         maxLtv = _newMaxLtv;
         targetLtv = _newTargetLtv;
