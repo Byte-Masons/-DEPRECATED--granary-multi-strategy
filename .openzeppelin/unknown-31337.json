@@ -8,7 +8,7 @@
     },
     {
       "address": "0x8198f5d8F8CfFE8f9C413d98a0A55aEB8ab9FbB7",
-      "txHash": "0x870797d2775671f213a04717ccc69bb91dedb70a0ded9213425ba0e452af186b",
+      "txHash": "0xc9a0645a832a9c9b26b1c1fd5265aabb74fbe2f2e5cdd63be7c63250a2b45949",
       "kind": "uups"
     }
   ],
@@ -922,9 +922,9 @@
         }
       }
     },
-    "0727ba23edba87a394eb490f3f7beb209cb6ac964300b7c2b88cbd9478448501": {
+    "1605d25c5886d788c8e1f2db2bf3b095a403b3d3127e8633eb55d5e5952c817d": {
       "address": "0x36b58F5C1969B7b6591D752ea6F5486D069010AB",
-      "txHash": "0xbf35fac24b6f4dd801a03322f242e32bb566c9a0203d77cb6298c3fbe1a137a0",
+      "txHash": "0x6dccf3b999e72613714dc4c7e65528bffe100c3b0e55d2a4af33f735d6c0e0df",
       "layout": {
         "storage": [
           {
@@ -1108,81 +1108,73 @@
             "label": "gWant",
             "offset": 0,
             "slot": "312",
-            "type": "t_contract(IAToken)11678",
-            "contract": "ReaperStrategyGeist",
-            "src": "contracts\\ReaperStrategyGranary.sol:32"
+            "type": "t_contract(IAToken)11734",
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:34"
           },
           {
             "label": "targetLtv",
             "offset": 0,
             "slot": "313",
             "type": "t_uint256",
-            "contract": "ReaperStrategyGeist",
-            "src": "contracts\\ReaperStrategyGranary.sol:34"
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:37"
           },
           {
             "label": "maxDeleverageLoopIterations",
             "offset": 0,
             "slot": "314",
             "type": "t_uint256",
-            "contract": "ReaperStrategyGeist",
-            "src": "contracts\\ReaperStrategyGranary.sol:35"
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:38"
           },
           {
             "label": "flashLoanStatus",
             "offset": 0,
             "slot": "315",
             "type": "t_uint256",
-            "contract": "ReaperStrategyGeist",
-            "src": "contracts\\ReaperStrategyGranary.sol:41"
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:44"
           },
           {
-            "label": "rewardClaimingTokens",
+            "label": "rewardTokens",
             "offset": 0,
             "slot": "316",
             "type": "t_array(t_address)dyn_storage",
-            "contract": "ReaperStrategyGeist",
-            "src": "contracts\\ReaperStrategyGranary.sol:62"
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:65"
           },
           {
             "label": "wftmToWantPath",
             "offset": 0,
             "slot": "317",
             "type": "t_array(t_address)dyn_storage",
-            "contract": "ReaperStrategyGeist",
-            "src": "contracts\\ReaperStrategyGranary.sol:70"
-          },
-          {
-            "label": "geistToWftmPath",
-            "offset": 0,
-            "slot": "318",
-            "type": "t_array(t_address)dyn_storage",
-            "contract": "ReaperStrategyGeist",
-            "src": "contracts\\ReaperStrategyGranary.sol:71"
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:72"
           },
           {
             "label": "wftmToDaiPath",
             "offset": 0,
-            "slot": "319",
+            "slot": "318",
             "type": "t_array(t_address)dyn_storage",
-            "contract": "ReaperStrategyGeist",
-            "src": "contracts\\ReaperStrategyGranary.sol:72"
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:73"
           },
           {
             "label": "maxLtv",
             "offset": 0,
-            "slot": "320",
+            "slot": "319",
             "type": "t_uint256",
-            "contract": "ReaperStrategyGeist",
-            "src": "contracts\\ReaperStrategyGranary.sol:74"
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:75"
           },
           {
             "label": "minLeverageAmount",
             "offset": 0,
-            "slot": "321",
+            "slot": "320",
             "type": "t_uint256",
-            "contract": "ReaperStrategyGeist",
-            "src": "contracts\\ReaperStrategyGranary.sol:75"
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:76"
           }
         ],
         "types": {
@@ -1214,7 +1206,7 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(IAToken)11678": {
+          "t_contract(IAToken)11734": {
             "label": "contract IAToken",
             "numberOfBytes": "20"
           },

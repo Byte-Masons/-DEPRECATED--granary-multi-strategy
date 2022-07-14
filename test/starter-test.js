@@ -3,6 +3,7 @@ const chai = require('chai');
 const {solidity} = require('ethereum-waffle');
 chai.use(solidity);
 const {expect} = chai;
+const incentivesControllerABI = require('./GranaryIncentivesController.json');
 
 const moveTimeForward = async (seconds) => {
   await network.provider.send('evm_increaseTime', [seconds]);
@@ -35,6 +36,8 @@ describe('Vaults', function () {
   let want;
   let wftm;
   let dai;
+  let oath;
+  let stader;
 
   const treasuryAddr = '0x0e7c5313E9BB80b654734d9b7aB1FB01468deE3b';
   const paymentSplitterAddress = '0x63cbd4134c2253041F370472c130e92daE4Ff174';
@@ -52,6 +55,16 @@ describe('Vaults', function () {
   const wantHolderAddr = '0x431e81e5dfb5a24541b5ff8762bdef3f32f96354';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
 
+  const rewarderOwnerAddr = '0xe027880CEB8114F2e367211dF977899d00e66138';
+  //const rewarderOwnerAddr = '0x33e7CCf4cc3ffC6c53221900D21a3c56422D0E0A';
+  const oathHolderAddr = '0xeFB7895B2e38eBa4243002DDD2b76965193F13F9';
+  const staderHolderAddr = '0x0459287c18076e173320314D360f5500C79dd5Fe';
+  const granaryRewarderAddr = '0x6A0406B8103Ec68EE9A713A073C7bD587c5e04aD';
+  //const granaryRewarderAddr = '0x7780E1A8321BD58BBc76594Db494c7Bfe8e87040';
+
+  const oathAddr = '0x21ada0d2ac28c3a5fa3cd2ee30882da8812279b6';
+  const staderAddr = '0x412a13C109aC30f0dB80AD3Bd1DeFd5D0A6c0Ac6';
+
   let owner;
   let wantHolder;
   let strategist;
@@ -62,6 +75,9 @@ describe('Vaults', function () {
   let unassignedRole;
   let targetLTV;
   let allowedLTVDrift;
+  let granaryOwner;
+  let oathHolder;
+  let staderHolder;
 
   beforeEach(async function () {
     //reset network
@@ -71,7 +87,7 @@ describe('Vaults', function () {
         {
           forking: {
             jsonRpcUrl: 'https://rpcapi-tracing.fantom.network/',
-            blockNumber: 40582443,
+            blockNumber: 42737345,
           },
         },
       ],
@@ -109,10 +125,25 @@ describe('Vaults', function () {
       params: [maintainerAddress],
     });
     maintainer = await ethers.provider.getSigner(maintainerAddress);
+    await hre.network.provider.request({
+      method: 'hardhat_impersonateAccount',
+      params: [rewarderOwnerAddr],
+    });
+    granaryOwner = await ethers.provider.getSigner(rewarderOwnerAddr);
+    await hre.network.provider.request({
+      method: 'hardhat_impersonateAccount',
+      params: [oathHolderAddr],
+    });
+    oathHolder = await ethers.provider.getSigner(oathHolderAddr);
+    await hre.network.provider.request({
+      method: 'hardhat_impersonateAccount',
+      params: [staderHolderAddr],
+    });
+    staderHolder = await ethers.provider.getSigner(staderHolderAddr);
 
     //get artifacts
     Vault = await ethers.getContractFactory('ReaperVaultV2');
-    Strategy = await ethers.getContractFactory('ReaperStrategyGeist');
+    Strategy = await ethers.getContractFactory('ReaperStrategyGranary');
     Want = await ethers.getContractFactory('@openzeppelin/contracts/token/ERC20/ERC20.sol:ERC20');
 
     //deploy contracts
@@ -143,9 +174,21 @@ describe('Vaults', function () {
     want = await Want.attach(wantAddress);
     wftm = await Want.attach(wftmAddress);
     dai = await Want.attach(daiAddress);
+    oath = await Want.attach(oathAddr);
+    stader = await Want.attach(staderAddr);
 
     //approving LP token and vault share spend
     await want.connect(wantHolder).approve(vault.address, ethers.constants.MaxUint256);
+    // transfer rewards to the rewarder
+    const oathHolderBalance = await oath.balanceOf(oathHolderAddr);
+    await oath.connect(oathHolder).transfer(granaryRewarderAddr, oathHolderBalance);
+
+    const staderHolderBalance = await stader.balanceOf(staderHolderAddr);
+    await stader.connect(staderHolder).transfer(granaryRewarderAddr, staderHolderBalance);
+    // Start reward emissions
+    const rewarder = new ethers.Contract(granaryRewarderAddr, incentivesControllerABI, granaryOwner);
+    await rewarder.configureAssets([gWant], [ethers.utils.parseEther('1')], [oathAddr]);
+    await rewarder.configureAssets([gWant], [ethers.utils.parseEther('1')], [staderAddr]);
   });
 
   xdescribe('Deploying the vault and strategy', function () {

@@ -3,22 +3,23 @@
 import "./abstract/ReaperBaseStrategyv4.sol";
 import "./interfaces/IAToken.sol";
 import "./interfaces/IAaveProtocolDataProvider.sol";
-import "./interfaces/IChefIncentivesController.sol";
 import "./interfaces/IFlashLoanReceiver.sol";
 import "./interfaces/ILendingPool.sol";
 import "./interfaces/ILendingPoolAddressesProvider.sol";
-import "./interfaces/IMultiFeeDistribution.sol";
+import "./interfaces/IGranaryIncentivesController.sol";
 import "./interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import {FixedPointMathLib} from "./library/FixedPointMathLib.sol";
+
+import "hardhat/console.sol";
 
 pragma solidity 0.8.11;
 
 /**
  * @dev This strategy will deposit and leverage a token on Granary to maximize yield
  */
-contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
+contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using FixedPointMathLib for uint256;
 
@@ -27,9 +28,11 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     address public constant ADDRESSES_PROVIDER_ADDRESS = address(0x8b9D58E2Dc5e9b5275b62b1F30b3c0AC87138130);
     address public constant DATA_PROVIDER = address(0x3132870d08f736505FF13B19199be17629085072);
     address public constant REWARDER = address(0x6A0406B8103Ec68EE9A713A073C7bD587c5e04aD);
+    //address public constant REWARDER = address(0x7780E1A8321BD58BBc76594Db494c7Bfe8e87040);
 
     // this strategy's configurable tokens
     IAToken public gWant;
+    address public constant variableDebtWant = address(0x0f7f11AA3C42aaa5e653EbEd07220B4392a976A4);
 
     uint256 public targetLtv; // in hundredths of percent, 8000 = 80%
     uint256 public maxDeleverageLoopIterations;
@@ -51,24 +54,22 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
     /**
      * @dev Tokens Used:
      * {WFTM} - Required for liquidity routing when doing swaps.
-     * {GEIST} - Reward token for borrowing/lending that is used to rebalance and re-deposit.
      * {DAI} - For charging fees
-     * {rewardClaimingTokens} - Array containing gWant + corresponding variable debt token,
+     * {rewardTokens} - Array containing gWant + corresponding variable debt token,
      *                          used for vesting any oustanding unvested Geist tokens.
      */
     address public constant WFTM = address(0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83);
-    address public constant GEIST = address(0xd8321AA83Fb0a4ECd6348D4577431310A6E0814d);
+    address public constant OATH = address(0x21Ada0D2aC28C3A5Fa3cD2eE30882dA8812279B6);
+    address public constant STADER = address(0x412a13C109aC30f0dB80AD3Bd1DeFd5D0A6c0Ac6);
     address public constant DAI = 0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E;
-    address[] public rewardClaimingTokens;
+    address[] public rewardTokens;
 
     /**
      * @dev Paths used to swap tokens:
      * {wftmToWantPath} - to swap {WFTM} to {want}
-     * {geistToWftmPath} - to swap {GEIST} to {WFTM}
      * {wftmToDaiPath} - Path we take to get from {WFTM} into {DAI}.
      */
     address[] public wftmToWantPath;
-    address[] public geistToWftmPath;
     address[] public wftmToDaiPath;
 
     uint256 public maxLtv; // in hundredths of percent, 8000 = 80%
@@ -93,7 +94,6 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         __ReaperBaseStrategy_init(_vault, want, _feeRemitters, _strategists, _multisigRoles);
         maxDeleverageLoopIterations = 10;
         minLeverageAmount = 1000;
-        geistToWftmPath = [GEIST, WFTM];
         wftmToDaiPath = [WFTM, DAI];
 
         if (address(want) == WFTM) {
@@ -103,7 +103,7 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
         }
 
         (, , address vToken) = IAaveProtocolDataProvider(DATA_PROVIDER).getReserveTokensAddresses(address(want));
-        rewardClaimingTokens = [address(_gWant), vToken];
+        rewardTokens = [address(_gWant), vToken];
 
         _safeUpdateTargetLtv(_targetLtv, _maxLtv);
     }
@@ -347,8 +347,15 @@ contract ReaperStrategyGeist is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * @dev Vests {GEIST} tokens, withdraws them immediately (for 50% penalty), swaps them to {WFTM}.
      */
     function _claimRewards() internal {
+        console.log("_claimRewards()");
+        // function getRewardsBalance(address[] calldata assets, address user, address rewardToken)
+        address[] memory assets = new address[](2);
+        assets[0] = address(gWant);
+        assets[1] = variableDebtWant;
+        uint256 oathBalance = IGranaryIncentivesController(REWARDER).getRewardsBalance(assets, address(this), OATH);
+        console.log("oathBalance: ", oathBalance);
         // vest unvested tokens
-        // IChefIncentivesController(GEIST_INCENTIVES_CONTROLLER).claim(address(this), rewardClaimingTokens);
+        // IChefIncentivesController(GEIST_INCENTIVES_CONTROLLER).claim(address(this), rewardTokens);
 
         // // withdraw immediately
         // IMultiFeeDistribution stakingContract = IMultiFeeDistribution(GEIST_STAKING);
