@@ -3,14 +3,18 @@
 pragma solidity ^0.8.0;
 
 import "../interfaces/IStrategy.sol";
+import "../interfaces/IUniswapV2Router02.sol";
 import "../interfaces/IVault.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 abstract contract ReaperBaseStrategyv4 is IStrategy, UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
+
+    address public constant UNI_ROUTER = 0xF491e7B69E4244ad4002BC14e878a34207E38c29;
 
     uint256 public constant PERCENT_DIVISOR = 10_000;
     uint256 public constant ONE_YEAR = 365 days;
@@ -23,6 +27,42 @@ abstract contract ReaperBaseStrategyv4 is IStrategy, UUPSUpgradeable, AccessCont
     bool public emergencyExit;
     uint256 public lastHarvestTimestamp;
     uint256 public upgradeProposalTime;
+
+    /**
+     * We break down the harvest logic into the following operations:
+     * 1. Claiming rewards
+     * 2. A series of swaps as required, including charging fees in the desired token
+     * 3. Creating more of the strategy's underlying token.
+     *
+     * #1 and #3 are specific to each protocol.
+     * #2 however is mostly the same across all strats. So to make things more generic, we
+     * will execute #2 by iterating through a series of pre-defined "steps".
+     *
+     * Currently, a step can of type "Swap" or "ChargeFees".
+     */
+    enum HarvestStepType {
+        Swap,
+        ChargeFees
+    }
+
+    enum StepPercentageType {
+        Absolute, // use the actual percentage value
+        TotalFee // use {totalFee} and ignore the actual percentage value
+    }
+
+    struct StepTypeWithData {
+        HarvestStepType stepType;
+        address[] path; // path[0] is treated as feesToken for ChargeFees step
+        StepPercentageType percentageType;
+        uint256 percentage; // in basis points precision
+    }
+
+    /**
+     * This array holds all the swapping and fee-charging operations in sequence.
+     * {ADMIN} role or higher will be able to pop and push things to this array when
+     * the strategy is paused.
+     */
+    StepTypeWithData[] public steps;
 
     /**
      * Reaper Roles in increasing order of privilege.
@@ -174,6 +214,151 @@ abstract contract ReaperBaseStrategyv4 is IStrategy, UUPSUpgradeable, AccessCont
         _adjustPosition(debt);
         lastHarvestTimestamp = block.timestamp;
         emit StratHarvest(msg.sender);
+    }
+
+    /**
+     * Perform any Strategy unwinding or other calls necessary to capture the
+     * "free return" this Strategy has generated since the last time its core
+     * position(s) were adjusted. Examples include unwrapping extra rewards.
+     * This call is only used during "normal operation" of a Strategy, and
+     * should be optimized to minimize losses as much as possible.
+     *
+     * This method returns any realized profits and/or realized losses
+     * incurred, and should return the total amounts of profits/losses/debt
+     * payments (in `want` tokens) for the Vault's accounting.
+     *
+     * `_debt` will be 0 if the Strategy is not past the configured
+     * allocated capital, otherwise its value will be how far past the allocation
+     * the Strategy is. The Strategy's allocation is configured in the Vault.
+     *
+     * NOTE: `repayment` should be less than or equal to `_debt`.
+     *       It is okay for it to be less than `_debt`, as that
+     *       should only used as a guide for how much is left to pay back.
+     *       Payments should be made to minimize loss from slippage, debt,
+     *       withdrawal fees, etc.
+     * @dev The amount of fee that is remitted to the
+     *      caller must be returned.
+     */
+    function _harvestCore(uint256 _debt)
+        internal
+        virtual
+        returns (
+            uint256 callerFee,
+            int256 roi,
+            uint256 repayment
+        ) 
+    {
+        _claimRewards();
+        uint256 numSteps = steps.length;
+        for (uint256 i = 0; i < numSteps; i = _uncheckedInc(i)) {
+            StepTypeWithData storage step = steps[i];
+            IERC20Upgradeable startToken = IERC20Upgradeable(step.path[0]);
+            uint256 percentage = _getStepPercentage(step.percentageType, step.percentage);
+            uint256 amount = (startToken.balanceOf(address(this)) * percentage) / PERCENT_DIVISOR;
+            if (amount == 0) {
+                continue;
+            }
+
+            if (step.stepType == HarvestStepType.Swap) {
+                _swap(amount, step.path);
+            } else if (step.stepType == HarvestStepType.ChargeFees) {
+                uint256 callFeeToUser = (amount * callFee) / PERCENT_DIVISOR;
+                callerFee += callFeeToUser;
+                uint256 treasuryFeeToVault = (amount * treasuryFee) / PERCENT_DIVISOR;
+                uint256 feeToStrategist = (treasuryFeeToVault * strategistFee) / PERCENT_DIVISOR;
+                treasuryFeeToVault -= feeToStrategist;
+
+                startToken.safeTransfer(msg.sender, callFeeToUser);
+                startToken.safeTransfer(treasury, treasuryFeeToVault);
+                startToken.safeTransfer(strategistRemitter, feeToStrategist);
+            }
+        }
+        _addLiquidity();
+
+        uint256 allocated = IVault(vault).strategies(address(this)).allocated;
+        uint256 totalAssets = balanceOf();
+        uint256 toFree = _debt;
+
+        if (totalAssets > allocated) {
+            uint256 profit = totalAssets - allocated;
+            toFree += profit;
+            roi = int256(profit);
+        } else if (totalAssets < allocated) {
+            roi = -int256(allocated - totalAssets);
+        }
+
+        (uint256 amountFreed, uint256 loss) = _liquidatePosition(toFree);
+        repayment = MathUpgradeable.min(_debt, amountFreed);
+        roi -= int256(loss);
+    }
+
+    /**
+     * Helper function that reads the {StepPercentageType} and returns
+     * the correct token % to use in the operation. If the percentage type
+     * is {TotalFee}, {_rawPercentage} is ignored and {totalFee} is returned.
+     * Otherwise, {_rawPercentage} is returned.
+     */
+    function _getStepPercentage(StepPercentageType _type, uint256 _rawPercentage)
+        internal
+        view
+        returns (uint256 percentage)
+    {
+        if (_type == StepPercentageType.TotalFee) {
+            percentage = totalFee;
+        } else {
+            percentage = _rawPercentage;
+        }
+    }
+
+    /**
+     * @dev Core harvest function.
+     * Swaps amount using path
+     */
+    function _swap(uint256 amount, address[] storage path) internal {
+        if (amount != 0) {
+            // TODO tess3rac7 check getAmountsOut returns non-zero
+            IERC20Upgradeable(path[0]).safeIncreaseAllowance(UNI_ROUTER, amount);
+            IUniswapV2Router02(UNI_ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                amount,
+                0,
+                path,
+                address(this),
+                block.timestamp + 600
+            );
+        }
+    }
+
+    /**
+     * Only {ADMIN} or higher roles may set the array
+     * of steps executed as part of harvest.
+     */
+    function setHarvestSteps(
+        StepTypeWithData[] calldata _newSteps
+    ) external {
+        _atLeastRole(ADMIN);
+        delete steps;
+
+        uint256 numSteps = _newSteps.length;
+        for (uint256 i = 0; i < numSteps; i = _uncheckedInc(i)) {
+            StepTypeWithData memory step = _newSteps[i];
+            uint256 pathLength = step.path.length;
+            if (step.stepType == HarvestStepType.Swap) {
+                require(pathLength > 1);
+                for (uint256 j = 0; j < pathLength; j = _uncheckedInc(j)) {
+                    require(step.path[j] != address(0));
+                }
+            } else {
+                require(pathLength == 1);
+                require(step.path[0] != address(0));
+            }
+
+            if (step.percentageType == StepPercentageType.Absolute) {
+                require(step.percentage != 0);
+                require(step.percentage <= PERCENT_DIVISOR);
+            }
+
+            steps.push(step);
+        }
     }
 
     /**
@@ -344,37 +529,16 @@ abstract contract ReaperBaseStrategyv4 is IStrategy, UUPSUpgradeable, AccessCont
     function _liquidateAllPositions() internal virtual returns (uint256 amountFreed);
 
     /**
-     * Perform any Strategy unwinding or other calls necessary to capture the
-     * "free return" this Strategy has generated since the last time its core
-     * position(s) were adjusted. Examples include unwrapping extra rewards.
-     * This call is only used during "normal operation" of a Strategy, and
-     * should be optimized to minimize losses as much as possible.
-     *
-     * This method returns any realized profits and/or realized losses
-     * incurred, and should return the total amounts of profits/losses/debt
-     * payments (in `want` tokens) for the Vault's accounting.
-     *
-     * `_debt` will be 0 if the Strategy is not past the configured
-     * allocated capital, otherwise its value will be how far past the allocation
-     * the Strategy is. The Strategy's allocation is configured in the Vault.
-     *
-     * NOTE: `repayment` should be less than or equal to `_debt`.
-     *       It is okay for it to be less than `_debt`, as that
-     *       should only used as a guide for how much is left to pay back.
-     *       Payments should be made to minimize loss from slippage, debt,
-     *       withdrawal fees, etc.
-     * @dev subclasses should add their custom harvesting logic in this function
-     *      including charging any fees. The amount of fee that is remitted to the
-     *      caller must be returned.
+     * @dev subclasses should add their custom logic for claiming rewards as part of
+     *      harvest within this function.
      */
-    function _harvestCore(uint256 _debt)
-        internal
-        virtual
-        returns (
-            uint256 callerFee,
-            int256 roi,
-            uint256 repayment
-        );
+    function _claimRewards() internal virtual;
+
+    /**
+     * @dev subclasses should add their custom logic for creating more of the strategy's
+     *      underlying token within this function.
+     */
+    function _addLiquidity() internal virtual;
 
     function _uncheckedInc(uint256 i) internal pure returns (uint256) {
         unchecked {
