@@ -48,6 +48,7 @@ describe('Vaults', function () {
   const maintainerAddress = '0x81876677843D00a7D792E1617459aC2E93202576';
   const wftmAddress = '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83';
   const daiAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
+  const usdcAddress = '0x04068DA6C83AFCFA0e13ba15A6696662335D5B75';
   const wantAddress = wftmAddress;
   const gWant = '0x98d5105370191D641f32589B35cDa9eCd367C74F';
   const variableDebtWant = '0x0f7f11AA3C42aaa5e653EbEd07220B4392a976A4';
@@ -233,8 +234,50 @@ describe('Vaults', function () {
       },
     ]);
 
-    await strategy.toggleIsOathRewardActive();
-    await strategy.toggleIsStaderRewardActive();
+    // struct StepTypeWithData {
+    //     HarvestStepType stepType;
+    //     address[] path; // path[0] is treated as feesToken for ChargeFees step
+    //     StepPercentageType percentageType;
+    //     uint256 percentage; // in basis points precision
+    // }
+
+    // step 1: swap totalFee % of OATH -> USDC using path OATH -> WFTM -> USDC
+    const step1 = {
+      stepType: 0, // swap
+      path: [oathAddr, wftmAddress, usdcAddress],
+      percentageType: 1, // totalFee %
+      percentage: 450,
+    };
+    // step 2: swap totalFee % of SD -> USDC using path SD -> USDC
+    const step2 = {
+      stepType: 0, // swap
+      path: [staderAddr, usdcAddress],
+      percentageType: 1, // totalFee %
+      percentage: 450,
+    };
+    // step 3: charge fees using all of USDC
+    const step3 = {
+      stepType: 1, // chargeFees
+      path: [usdcAddress],
+      percentageType: 0, // absolute %
+      percentage: 10_000,
+    };
+    // step 4: convert remaining OATH -> WFTM using path OATH -> WFTM
+    const step4 = {
+      stepType: 0, // swap
+      path: [oathAddr, wftmAddress],
+      percentageType: 0, // absolute %
+      percentage: 10_000,
+    };
+    // step 5: convert remaining SD -> WFTM using path SD -> USDC -> WFTM
+    const step5 = {
+      stepType: 0, // swap
+      path: [staderAddr, usdcAddress, wftmAddress],
+      percentageType: 0, // absolute %
+      percentage: 10_000,
+    };
+
+    await strategy.setHarvestSteps([step1, step2, step3, step4, step5]);
 
     await rewarder.setRewardsVault(oathHolderAddr, oathAddr);
     await rewarder.setRewardsVault(staderHolderAddr, staderAddr);
