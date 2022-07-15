@@ -52,7 +52,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * {WFTM} - Required for liquidity routing when doing swaps.
      * {USDC} - For charging fees
      * {rewardTokens} - Array containing gWant + corresponding variable debt token,
-     *                          used for vesting any oustanding unvested Geist tokens.
+     *                          used for claiming rewards
      */
     address public constant WFTM = address(0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83);
     address public constant OATH = address(0x21Ada0D2aC28C3A5Fa3cD2eE30882dA8812279B6);
