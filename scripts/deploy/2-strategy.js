@@ -12,7 +12,7 @@ async function main() {
   const superAdmin = '0x04C710a1E8a738CDf7cAD3a52Ba77A784C35d8CE';
   const admin = '0x539eF36C804e4D735d8cAb69e8e441c12d4B88E0';
   const guardian = '0xf20E25f2AB644C8ecBFc992a6829478a85A98F2c';
-  const gWant = '0x98d5105370191D641f32589B35cDa9eCd367C74F';
+  const gWant = '0x6cBE07B362f2be4217a5ce247F07C422B0Bd88f3';
   const targetLtv = 0;
 
   const strategy = await hre.upgrades.deployProxy(

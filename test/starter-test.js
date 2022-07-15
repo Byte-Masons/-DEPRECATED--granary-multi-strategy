@@ -48,12 +48,12 @@ describe('Vaults', function () {
   const maintainerAddress = '0x81876677843D00a7D792E1617459aC2E93202576';
   const wftmAddress = '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83';
   const daiAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
-  const wantAddress = wftmAddress;
-  const gWant = '0x98d5105370191D641f32589B35cDa9eCd367C74F';
-  const variableDebtWant = '0x0f7f11AA3C42aaa5e653EbEd07220B4392a976A4';
+  const wantAddress = '0x049d68029688eAbF473097a2fC38ef61633A3C7A';
+  const gWant = '0x6cBE07B362f2be4217a5ce247F07C422B0Bd88f3';
+  const variableDebtWant = '0x090335c737914bfF44d2c8039E5f689882dC8242';
   const targetLtv = 0;
 
-  const wantHolderAddr = '0x431e81e5dfb5a24541b5ff8762bdef3f32f96354';
+  const wantHolderAddr = '0x4188663a85C92EEa35b5AD3AA5cA7CeB237C6fe9';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
 
   const rewarderOwnerAddr = '0x33e7CCf4cc3ffC6c53221900D21a3c56422D0E0A';
@@ -164,7 +164,7 @@ describe('Vaults', function () {
         [superAdminAddress, adminAddress, guardianAddress],
         gWant,
         targetLtv,
-        targetLtv + 100,
+        targetLtv + 40,
       ],
       {kind: 'uups'},
     );

@@ -72,6 +72,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     address[] public staderToUsdcPath;
     address[] public usdcToWftmPath;
     address[] public grainToUsdcPath;
+    address[] public usdcToWantPath;
 
     uint256 public maxLtv; // in hundredths of percent, 8000 = 80%
     uint256 public minLeverageAmount;
@@ -102,6 +103,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
         oathToWftmPath = [OATH, WFTM];
         staderToUsdcPath = [STADER, USDC];
         usdcToWftmPath = [USDC, WFTM];
+        usdcToWantPath = [USDC, want];
 
         if (address(want) == WFTM) {
             wftmToWantPath = [WFTM];
@@ -367,6 +369,8 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
             uint256 wftmBalanceAfter = IERC20Upgradeable(WFTM).balanceOf(address(this));
             uint256 wftmFee = (wftmBalanceAfter - wftmBalanceBefore) * totalFee / PERCENT_DIVISOR;
             _swap(wftmFee, wftmToUsdcPath);
+            wftmBalanceAfter = IERC20Upgradeable(WFTM).balanceOf(address(this));
+            _swap(wftmBalanceAfter, wftmToWantPath);
         }
         if (isStaderRewardActive) {
             uint256 sdBalance = IERC20Upgradeable(STADER).balanceOf(address(this));
@@ -374,7 +378,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
             _swap(sdBalance, staderToUsdcPath);
             uint256 usdcBalanceAfter = IERC20Upgradeable(USDC).balanceOf(address(this));
             uint256 usdcToSwap = (usdcBalanceAfter - usdcBalanceBefore) * (PERCENT_DIVISOR - totalFee) / PERCENT_DIVISOR; // Leave totalFee remaining for fees
-            _swap(usdcToSwap, usdcToWftmPath);
+            _swap(usdcToSwap, usdcToWantPath);
         }
         if (isGrainRewardActive) {
             uint256 grainBalance = IERC20Upgradeable(GRAIN).balanceOf(address(this));
@@ -382,7 +386,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
             _swap(grainBalance, grainToUsdcPath);
             uint256 usdcBalanceAfter = IERC20Upgradeable(USDC).balanceOf(address(this));
             uint256 usdcToSwap = (usdcBalanceAfter - usdcBalanceBefore) * (PERCENT_DIVISOR - totalFee) / PERCENT_DIVISOR; // Leave totalFee remaining for fees
-            _swap(usdcToSwap, usdcToWftmPath);
+            _swap(usdcToSwap, usdcToWantPath);
         }
         uint256 usdcBalanceAfter = IERC20Upgradeable(USDC).balanceOf(address(this));
         return usdcBalanceAfter - usdcBalanceBefore;
