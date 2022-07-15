@@ -72,7 +72,13 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
         uint256 _targetLtv,
         uint256 _maxLtv
     ) public initializer {
-        __ReaperBaseStrategy_init(_vault, _gWant.UNDERLYING_ASSET_ADDRESS(), _feeRemitters, _strategists, _multisigRoles);
+        __ReaperBaseStrategy_init(
+            _vault,
+            _gWant.UNDERLYING_ASSET_ADDRESS(),
+            _feeRemitters,
+            _strategists,
+            _multisigRoles
+        );
         gWant = _gWant;
         maxDeleverageLoopIterations = 10;
         minLeverageAmount = 1000;
@@ -265,7 +271,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     /**
      * @dev Claim rewards for supply and borrow
      */
-    function _claimRewards() override internal {
+    function _claimRewards() internal override {
         IRewardsController(REWARDER).claimAllRewardsToSelf(rewardTokens);
     }
 

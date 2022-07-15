@@ -246,7 +246,7 @@ abstract contract ReaperBaseStrategyv4 is IStrategy, UUPSUpgradeable, AccessCont
             uint256 callerFee,
             int256 roi,
             uint256 repayment
-        ) 
+        )
     {
         _claimRewards();
         uint256 numSteps = steps.length;
@@ -332,9 +332,7 @@ abstract contract ReaperBaseStrategyv4 is IStrategy, UUPSUpgradeable, AccessCont
      * Only {ADMIN} or higher roles may set the array
      * of steps executed as part of harvest.
      */
-    function setHarvestSteps(
-        StepTypeWithData[] calldata _newSteps
-    ) external {
+    function setHarvestSteps(StepTypeWithData[] calldata _newSteps) external {
         _atLeastRole(ADMIN);
         delete steps;
 

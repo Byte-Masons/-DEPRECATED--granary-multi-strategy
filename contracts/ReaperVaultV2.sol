@@ -30,9 +30,9 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         uint256 lastReport; // block.timestamp of the last time a report occured
     }
 
-    mapping(address => StrategyParams) public strategies;  // mapping strategies to their strategy parameters
+    mapping(address => StrategyParams) public strategies; // mapping strategies to their strategy parameters
     address[] public withdrawalQueue; // Ordering that `withdraw` uses to determine which strategies to pull funds from
-    uint256 public constant DEGRADATION_COEFFICIENT = 10 ** 18; // The unit for calculating profit degradation.
+    uint256 public constant DEGRADATION_COEFFICIENT = 10**18; // The unit for calculating profit degradation.
     uint256 public constant PERCENT_DIVISOR = 10_000; // Basis point unit, for calculating slippage and strategy allocations
     uint256 public tvlCap; // The maximum amount of assets the vault can hold while still allowing deposits
     uint256 public totalAllocBPS; // Sum of allocBPS across all strategies (in BPS, <= 10k)
@@ -43,7 +43,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     address public immutable asset; // The asset the vault accepts and looks to maximize.
     uint256 public withdrawMaxLoss = 1; // Max slippage(loss) allowed when withdrawing, in BPS (0.01%)
     uint256 public lockedProfitDegradation; // rate per block of degradation. DEGRADATION_COEFFICIENT is 100% per block
-    uint256 public  lockedProfit; // how much profit is locked and cant be withdrawn
+    uint256 public lockedProfit; // how much profit is locked and cant be withdrawn
 
     /**
      * Reaper Roles in increasing order of privilege.
@@ -72,7 +72,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         uint256 gains,
         uint256 losses,
         uint256 allocated,
-        uint256 allocBPS 
+        uint256 allocBPS
     );
     event StrategyAdded(address indexed strategy, uint256 allocBPS);
     event StrategyAllocBPSUpdated(address indexed strategy, uint256 allocBPS);
@@ -103,7 +103,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         constructionTime = block.timestamp;
         lastReport = block.timestamp;
         tvlCap = _tvlCap;
-        lockedProfitDegradation = DEGRADATION_COEFFICIENT * 46 / 10 ** 6; // 6 hours in blocks
+        lockedProfitDegradation = (DEGRADATION_COEFFICIENT * 46) / 10**6; // 6 hours in blocks
 
         for (uint256 i = 0; i < _strategists.length; i = _uncheckedInc(i)) {
             _grantRole(STRATEGIST, _strategists[i]);
@@ -143,12 +143,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     function _calculateLockedProfit() internal view returns (uint256) {
         uint256 lockedFundsRatio = (block.timestamp - lastReport) * lockedProfitDegradation;
 
-        if(lockedFundsRatio < DEGRADATION_COEFFICIENT) {
-            return lockedProfit - (
-                lockedFundsRatio
-                * lockedProfit
-                / DEGRADATION_COEFFICIENT
-            );
+        if (lockedFundsRatio < DEGRADATION_COEFFICIENT) {
+            return lockedProfit - ((lockedFundsRatio * lockedProfit) / DEGRADATION_COEFFICIENT);
         } else {
             return 0;
         }
@@ -180,7 +176,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     }
 
     /**
-     * @notice Maximum amount of the underlying asset that can be deposited into the Vault for the receiver, 
+     * @notice Maximum amount of the underlying asset that can be deposited into the Vault for the receiver,
      * through a deposit call.
      * @param receiver The depositor, unused in this case but here as part of the ERC4626 spec.
      * @return maxAssets - the maximum depositable assets.
@@ -194,8 +190,8 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     }
 
     /**
-     * @notice Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block, 
-     * given current on-chain conditions. 
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block,
+     * given current on-chain conditions.
      * @param assets The amount of assets to deposit.
      * @return shares - the amount of shares given for the amount of assets.
      */
@@ -225,7 +221,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         shares = previewDeposit(assets);
 
         IERC20Metadata(asset).safeTransferFrom(msg.sender, address(this), assets);
-        
+
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
     }
@@ -240,7 +236,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     }
 
     /**
-     * @notice Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, 
+     * @notice Allows an on-chain or off-chain user to simulate the effects of their mint at the current block,
      * given current on-chain conditions.
      * @param shares The amount of shares to mint.
      * @return assets - the amount of assets given for the amount of shares.
@@ -305,7 +301,11 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @param owner The owner of the shares to withdraw.
      * @return shares - the amount of shares burned.
      */
-    function withdraw(uint256 assets, address receiver, address owner) external nonReentrant returns (uint256 shares) {
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) external nonReentrant returns (uint256 shares) {
         require(assets != 0, "please provide amount");
         shares = previewWithdraw(assets);
         _withdraw(assets, shares, receiver, owner);
@@ -320,14 +320,19 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @param owner The owner of the shares to withdraw.
      * @return assets - the amount of assets withdrawn.
      */
-    function _withdraw(uint256 assets, uint256 shares, address receiver, address owner) internal returns (uint256) {
+    function _withdraw(
+        uint256 assets,
+        uint256 shares,
+        address receiver,
+        address owner
+    ) internal returns (uint256) {
         _burn(owner, shares);
 
         if (assets > IERC20Metadata(asset).balanceOf(address(this))) {
             uint256 totalLoss = 0;
             uint256 queueLength = withdrawalQueue.length;
             uint256 vaultBalance = 0;
-            
+
             for (uint256 i = 0; i < queueLength; i = _uncheckedInc(i)) {
                 vaultBalance = IERC20Metadata(asset).balanceOf(address(this));
                 if (assets <= vaultBalance) {
@@ -360,7 +365,10 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
                 assets = vaultBalance;
             }
 
-            require(totalLoss <= ((assets + totalLoss) * withdrawMaxLoss) / PERCENT_DIVISOR, "Cannot exceed the maximum allowed withdraw slippage");
+            require(
+                totalLoss <= ((assets + totalLoss) * withdrawMaxLoss) / PERCENT_DIVISOR,
+                "Cannot exceed the maximum allowed withdraw slippage"
+            );
         }
 
         IERC20Metadata(asset).safeTransfer(receiver, assets);
@@ -369,7 +377,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
     }
 
     /**
-     * @notice Maximum amount of Vault shares that can be redeemed from the owner balance in the Vault, 
+     * @notice Maximum amount of Vault shares that can be redeemed from the owner balance in the Vault,
      * through a redeem call.
      * @param owner The owner of the shares to redeem.
      * @return maxShares - the amount of redeemable shares.
@@ -393,7 +401,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @return pricePerFullShare - a uint256 of how much underlying asset one vault share represents.
      */
     function getPricePerFullShare() external view returns (uint256) {
-        return convertToAssets(10 ** decimals());
+        return convertToAssets(10**decimals());
     }
 
     /**
@@ -410,7 +418,11 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
      * @param owner The owner of the shares to redeem.
      * @return assets - the amount of assets redeemed.
      */
-    function redeem(uint256 shares, address receiver, address owner) public nonReentrant returns (uint256 assets) {
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) public nonReentrant returns (uint256 assets) {
         require(shares != 0, "please provide amount");
         assets = previewRedeem(shares);
         return _withdraw(assets, shares, receiver, owner);
@@ -467,7 +479,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         if (!(msg.sender == strategy)) {
             _atLeastRole(GUARDIAN);
         }
-        
+
         if (strategies[strategy].allocBPS == 0) {
             return;
         }
@@ -628,7 +640,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
             strategy.gains,
             strategy.losses,
             strategy.allocated,
-            strategy.allocBPS 
+            strategy.allocBPS
         );
 
         if (strategy.allocBPS == 0 || emergencyShutdown) {
@@ -660,7 +672,7 @@ contract ReaperVaultV2 is IERC4626, ERC20, ReentrancyGuard, AccessControlEnumera
         emit TvlCapUpdated(tvlCap);
     }
 
-     /**
+    /**
      * @notice Helper function to remove TVL cap.
      */
     function removeTvlCap() external {
