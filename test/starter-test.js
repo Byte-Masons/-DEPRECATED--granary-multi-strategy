@@ -181,7 +181,7 @@ describe('Vaults', function () {
 
     // Start reward emissions
     const rewarder = new ethers.Contract(granaryRewarderAddr, incentivesControllerABI, granaryOwner);
-    const emissionPerSecond = ethers.utils.parseEther('0.00001');
+    const emissionPerSecond = ethers.utils.parseEther('1');
     console.log(`emissionPerSecond: ${emissionPerSecond}`);
     const totalSupply = ethers.utils.parseEther('94976615.274089');
 
@@ -232,6 +232,9 @@ describe('Vaults', function () {
         reward: staderAddr,
       },
     ]);
+
+    await strategy.toggleIsOathRewardActive();
+    await strategy.toggleIsStaderRewardActive();
 
     await rewarder.setRewardsVault(oathHolderAddr, oathAddr);
     await rewarder.setRewardsVault(staderHolderAddr, staderAddr);
@@ -779,7 +782,7 @@ describe('Vaults', function () {
     it('should provide yield', async function () {
       const timeToSkip = 3600;
       const initialUserBalance = await want.balanceOf(wantHolderAddr);
-      const depositAmount = initialUserBalance.div(5);
+      const depositAmount = initialUserBalance.div(1000);
 
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       const initialVaultBalance = await vault.totalAssets();

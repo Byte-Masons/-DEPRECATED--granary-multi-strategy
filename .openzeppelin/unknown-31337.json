@@ -8,7 +8,7 @@
     },
     {
       "address": "0x8198f5d8F8CfFE8f9C413d98a0A55aEB8ab9FbB7",
-      "txHash": "0x9b5a2e68ea9e1aa3917f952ffe6d76bdde7993810e72e45ff7d01e31200dbf3a",
+      "txHash": "0xddf33dace75964f334346ae9ae30777a82c2e04b0dce34211b46f921bbe4de6f",
       "kind": "uups"
     }
   ],
@@ -922,9 +922,9 @@
         }
       }
     },
-    "9a298672a60496ee567f9e7e4c7bdff8affc272ecea26b3b9efabcee776519f0": {
+    "ccae20651e40ed3f79d6e9dbc1a478b32d39ced9d6e3b9d73882c35a09da1abe": {
       "address": "0x36b58F5C1969B7b6591D752ea6F5486D069010AB",
-      "txHash": "0xdbbf3c6d5eb42085e56e497b37e6ad9d0f304a0d7a02c81be0d71348ec1d43cc",
+      "txHash": "0x28a73ffd37954c08304518b1d9882c442b6b3fdb4623a560a2be33069b36baa2",
       "layout": {
         "storage": [
           {
@@ -1108,9 +1108,9 @@
             "label": "gWant",
             "offset": 0,
             "slot": "312",
-            "type": "t_contract(IAToken)11714",
+            "type": "t_contract(IAToken)12003",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:33"
+            "src": "contracts\\ReaperStrategyGranary.sol:31"
           },
           {
             "label": "targetLtv",
@@ -1118,7 +1118,7 @@
             "slot": "313",
             "type": "t_uint256",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:36"
+            "src": "contracts\\ReaperStrategyGranary.sol:34"
           },
           {
             "label": "maxDeleverageLoopIterations",
@@ -1126,7 +1126,7 @@
             "slot": "314",
             "type": "t_uint256",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:37"
+            "src": "contracts\\ReaperStrategyGranary.sol:35"
           },
           {
             "label": "flashLoanStatus",
@@ -1134,47 +1134,111 @@
             "slot": "315",
             "type": "t_uint256",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:43"
+            "src": "contracts\\ReaperStrategyGranary.sol:41"
+          },
+          {
+            "label": "GRAIN",
+            "offset": 0,
+            "slot": "316",
+            "type": "t_address",
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:62"
           },
           {
             "label": "rewardTokens",
             "offset": 0,
-            "slot": "316",
+            "slot": "317",
             "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyGranary",
-            "src": "contracts\\ReaperStrategyGranary.sol:64"
+            "src": "contracts\\ReaperStrategyGranary.sol:63"
           },
           {
             "label": "wftmToWantPath",
             "offset": 0,
-            "slot": "317",
+            "slot": "318",
+            "type": "t_array(t_address)dyn_storage",
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:70"
+          },
+          {
+            "label": "wftmToUsdcPath",
+            "offset": 0,
+            "slot": "319",
             "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyGranary",
             "src": "contracts\\ReaperStrategyGranary.sol:71"
           },
           {
-            "label": "wftmToDaiPath",
+            "label": "oathToWftmPath",
             "offset": 0,
-            "slot": "318",
+            "slot": "320",
             "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyGranary",
             "src": "contracts\\ReaperStrategyGranary.sol:72"
           },
           {
-            "label": "maxLtv",
+            "label": "staderToUsdcPath",
             "offset": 0,
-            "slot": "319",
-            "type": "t_uint256",
+            "slot": "321",
+            "type": "t_array(t_address)dyn_storage",
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:73"
+          },
+          {
+            "label": "usdcToWftmPath",
+            "offset": 0,
+            "slot": "322",
+            "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyGranary",
             "src": "contracts\\ReaperStrategyGranary.sol:74"
           },
           {
-            "label": "minLeverageAmount",
+            "label": "grainToUsdcPath",
             "offset": 0,
-            "slot": "320",
-            "type": "t_uint256",
+            "slot": "323",
+            "type": "t_array(t_address)dyn_storage",
             "contract": "ReaperStrategyGranary",
             "src": "contracts\\ReaperStrategyGranary.sol:75"
+          },
+          {
+            "label": "maxLtv",
+            "offset": 0,
+            "slot": "324",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:77"
+          },
+          {
+            "label": "minLeverageAmount",
+            "offset": 0,
+            "slot": "325",
+            "type": "t_uint256",
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:78"
+          },
+          {
+            "label": "isOathRewardActive",
+            "offset": 0,
+            "slot": "326",
+            "type": "t_bool",
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:80"
+          },
+          {
+            "label": "isStaderRewardActive",
+            "offset": 1,
+            "slot": "326",
+            "type": "t_bool",
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:81"
+          },
+          {
+            "label": "isGrainRewardActive",
+            "offset": 2,
+            "slot": "326",
+            "type": "t_bool",
+            "contract": "ReaperStrategyGranary",
+            "src": "contracts\\ReaperStrategyGranary.sol:82"
           }
         ],
         "types": {
@@ -1206,7 +1270,7 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(IAToken)11714": {
+          "t_contract(IAToken)12003": {
             "label": "contract IAToken",
             "numberOfBytes": "20"
           },

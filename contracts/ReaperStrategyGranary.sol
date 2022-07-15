@@ -12,8 +12,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import {FixedPointMathLib} from "./library/FixedPointMathLib.sol";
 
-import "hardhat/console.sol";
-
 pragma solidity 0.8.11;
 
 /**
@@ -31,7 +29,6 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
 
     // this strategy's configurable tokens
     IAToken public gWant;
-    address public constant variableDebtWant = address(0x0f7f11AA3C42aaa5e653EbEd07220B4392a976A4);
 
     uint256 public targetLtv; // in hundredths of percent, 8000 = 80%
     uint256 public maxDeleverageLoopIterations;
@@ -53,27 +50,35 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     /**
      * @dev Tokens Used:
      * {WFTM} - Required for liquidity routing when doing swaps.
-     * {DAI} - For charging fees
+     * {USDC} - For charging fees
      * {rewardTokens} - Array containing gWant + corresponding variable debt token,
      *                          used for vesting any oustanding unvested Geist tokens.
      */
     address public constant WFTM = address(0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83);
     address public constant OATH = address(0x21Ada0D2aC28C3A5Fa3cD2eE30882dA8812279B6);
     address public constant STADER = address(0x412a13C109aC30f0dB80AD3Bd1DeFd5D0A6c0Ac6);
-    address public constant DAI = 0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E;
+    address public constant USDC = address(0x04068DA6C83AFCFA0e13ba15A6696662335D5B75);
+    address public GRAIN;
     address[] public rewardTokens;
 
     /**
      * @dev Paths used to swap tokens:
      * {wftmToWantPath} - to swap {WFTM} to {want}
-     * {wftmToDaiPath} - Path we take to get from {WFTM} into {DAI}.
+     * {wftmToUsdcPath} - Path we take to get from {WFTM} into {USDC}.
      */
     address[] public wftmToWantPath;
-    address[] public wftmToDaiPath;
+    address[] public wftmToUsdcPath;
+    address[] public oathToWftmPath;
+    address[] public staderToUsdcPath;
+    address[] public usdcToWftmPath;
+    address[] public grainToUsdcPath;
 
     uint256 public maxLtv; // in hundredths of percent, 8000 = 80%
     uint256 public minLeverageAmount;
     uint256 public constant LTV_SAFETY_ZONE = 9800;
+    bool public isOathRewardActive;
+    bool public isStaderRewardActive;
+    bool public isGrainRewardActive;
 
     /**
      * @dev Initializes the strategy. Sets parameters, saves routes, and gives allowances.
@@ -93,7 +98,10 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
         __ReaperBaseStrategy_init(_vault, want, _feeRemitters, _strategists, _multisigRoles);
         maxDeleverageLoopIterations = 10;
         minLeverageAmount = 1000;
-        wftmToDaiPath = [WFTM, DAI];
+        wftmToUsdcPath = [WFTM, USDC];
+        oathToWftmPath = [OATH, WFTM];
+        staderToUsdcPath = [STADER, USDC];
+        usdcToWftmPath = [USDC, WFTM];
 
         if (address(want) == WFTM) {
             wftmToWantPath = [WFTM];
@@ -162,7 +170,8 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
         )
     {
         _claimRewards();
-        callerFee = _chargeFees();
+        uint256 usdcFee = _swapRewards();
+        callerFee = _chargeFees(usdcFee);
         _convertWftmToWant();
 
         uint256 allocated = IVault(vault).strategies(address(this)).allocated;
@@ -346,34 +355,55 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * @dev Claim rewards for supply and borrow
      */
     function _claimRewards() internal {
-        address[] memory assets = new address[](2);
-        assets[0] = address(gWant);
-        assets[1] = variableDebtWant;
-        IRewardsController(REWARDER).claimAllRewardsToSelf(assets);
+        IRewardsController(REWARDER).claimAllRewardsToSelf(rewardTokens);
+    }
+
+    function _swapRewards() internal returns (uint256) {
+        uint256 usdcBalanceBefore = IERC20Upgradeable(USDC).balanceOf(address(this));
+        if (isOathRewardActive) {
+            uint256 oathBalance = IERC20Upgradeable(OATH).balanceOf(address(this));
+            uint256 wftmBalanceBefore = IERC20Upgradeable(WFTM).balanceOf(address(this));
+            _swap(oathBalance, oathToWftmPath);
+            uint256 wftmBalanceAfter = IERC20Upgradeable(WFTM).balanceOf(address(this));
+            uint256 wftmFee = (wftmBalanceAfter - wftmBalanceBefore) * totalFee / PERCENT_DIVISOR;
+            _swap(wftmFee, wftmToUsdcPath);
+        }
+        if (isStaderRewardActive) {
+            uint256 sdBalance = IERC20Upgradeable(STADER).balanceOf(address(this));
+            uint256 usdcBalanceBefore = IERC20Upgradeable(USDC).balanceOf(address(this));
+            _swap(sdBalance, staderToUsdcPath);
+            uint256 usdcBalanceAfter = IERC20Upgradeable(USDC).balanceOf(address(this));
+            uint256 usdcToSwap = (usdcBalanceAfter - usdcBalanceBefore) * (PERCENT_DIVISOR - totalFee) / PERCENT_DIVISOR; // Leave totalFee remaining for fees
+            _swap(usdcToSwap, usdcToWftmPath);
+        }
+        if (isGrainRewardActive) {
+            uint256 grainBalance = IERC20Upgradeable(GRAIN).balanceOf(address(this));
+            uint256 usdcBalanceBefore = IERC20Upgradeable(USDC).balanceOf(address(this));
+            _swap(grainBalance, grainToUsdcPath);
+            uint256 usdcBalanceAfter = IERC20Upgradeable(USDC).balanceOf(address(this));
+            uint256 usdcToSwap = (usdcBalanceAfter - usdcBalanceBefore) * (PERCENT_DIVISOR - totalFee) / PERCENT_DIVISOR; // Leave totalFee remaining for fees
+            _swap(usdcToSwap, usdcToWftmPath);
+        }
+        uint256 usdcBalanceAfter = IERC20Upgradeable(USDC).balanceOf(address(this));
+        return usdcBalanceAfter - usdcBalanceBefore;
     }
 
     /**
      * @dev Core harvest function.
      * Charges fees based on the amount of WFTM gained from reward
      */
-    function _chargeFees() internal returns (uint256 callerFee) {
-        uint256 wftmFee = (IERC20Upgradeable(WFTM).balanceOf(address(this)) * totalFee) / PERCENT_DIVISOR;
-
-        IERC20Upgradeable dai = IERC20Upgradeable(DAI);
-        uint256 daiBalanceBefore = dai.balanceOf(address(this));
-        _swap(wftmFee, wftmToDaiPath);
-        uint256 daiBalanceAfter = dai.balanceOf(address(this));
-
-        uint256 daiFee = daiBalanceAfter - daiBalanceBefore;
-        if (daiFee != 0) {
-            callerFee = (daiFee * callFee) / PERCENT_DIVISOR;
-            uint256 treasuryFeeToVault = (daiFee * treasuryFee) / PERCENT_DIVISOR;
+    function _chargeFees(uint256 usdcFee) internal returns (uint256 callerFee) {
+        if (usdcFee != 0) {
+            callerFee = (usdcFee * callFee) / PERCENT_DIVISOR;
+            uint256 treasuryFeeToVault = (usdcFee * treasuryFee) / PERCENT_DIVISOR;
             uint256 feeToStrategist = (treasuryFeeToVault * strategistFee) / PERCENT_DIVISOR;
             treasuryFeeToVault -= feeToStrategist;
 
-            dai.safeTransfer(msg.sender, callerFee);
-            dai.safeTransfer(treasury, treasuryFeeToVault);
-            dai.safeTransfer(strategistRemitter, feeToStrategist);
+            IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
+
+            usdc.safeTransfer(msg.sender, callerFee);
+            usdc.safeTransfer(treasury, treasuryFeeToVault);
+            usdc.safeTransfer(strategistRemitter, feeToStrategist);
         }
     }
 
@@ -495,5 +525,33 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
         require(_newTargetLtv <= _newMaxLtv, "targetLtv must <= maxLtv");
         maxLtv = _newMaxLtv;
         targetLtv = _newTargetLtv;
+    }
+
+    function toggleIsOathRewardActive() external {
+        _atLeastRole(STRATEGIST);
+        isOathRewardActive = !isOathRewardActive;
+    }
+
+    function toggleIsStaderRewardActive() external {
+        _atLeastRole(STRATEGIST);
+        isStaderRewardActive = !isStaderRewardActive;
+    }
+
+    function toggleIsGrainRewardActive() external {
+        _atLeastRole(STRATEGIST);
+        isGrainRewardActive = !isGrainRewardActive;
+    }
+
+    function setGrainToken(address _grainAddress) external {
+        _atLeastRole(STRATEGIST);
+        require(GRAIN == address(0), "GRAIN can only be set once");
+        GRAIN = _grainAddress;
+    }
+
+    function setGrainToUsdcPath(address[] calldata _path) external {
+        _atLeastRole(STRATEGIST);
+        require(_path[0] == GRAIN, "Must start with GRAIN");
+        require(_path.length > 1, "Must contain a path");
+        grainToUsdcPath = _path;
     }
 }
