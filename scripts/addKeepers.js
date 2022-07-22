@@ -1,5 +1,5 @@
 async function main() {
-  const strategyAddress = '';
+  const strategyAddress = '0xDA4E5116DF14bD08dEe3E65eAD2B6809b62d4042';
   const Strategy = await ethers.getContractFactory('ReaperStrategyGranary');
   const strategy = Strategy.attach(strategyAddress);
 
@@ -19,7 +19,7 @@ async function main() {
     '0x7B540a4D24C906E5fB3d3EcD0Bb7B1aEd3823897',
     '0x8456a746e09A18F9187E5babEe6C60211CA728D1',
     '0xd21E0fE4ba0379Ec8DF6263795c8120414Acd0A3',
-    '0x3b410908e71ee04e7de2a87f8f9003afe6c1c7ce',
+    '0x9ccA5c3829224F7ac9077540bC365De4384823A7',
   ];
 
   const keeperRole = '0x71a9859d7dd21b24504a6f306077ffc2d510b4d4b61128e931fe937441ad1836';
