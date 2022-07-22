@@ -1,7 +1,7 @@
 const hre = require('hardhat');
 
 async function main() {
-  const vaultAddress = '0xa6313302B3CeFF2727f19AAA30d7240d5B3CD9CD';
+  const vaultAddress = '0x9B7bd49E37195Ea029BdDCBEF14e4eB2349DDe0E';
 
   const Strategy = await ethers.getContractFactory('ReaperStrategyGranary');
   const treasuryAddress = '0xeb9C9b785aA7818B2EBC8f9842926c4B9f707e4B';
@@ -12,7 +12,7 @@ async function main() {
   const superAdmin = '0x9BC776dBb134Ef9D7014dB1823Cd755Ac5015203';
   const admin = '0xeb9C9b785aA7818B2EBC8f9842926c4B9f707e4B';
   const guardian = '0xb0C9D5851deF8A2Aac4A23031CA2610f8C3483F9';
-  const gWant = '0x98d5105370191D641f32589B35cDa9eCd367C74F';
+  const gWant = '0x7A0FDDBA78FF45D353B1630B77f4D175A00df0c0';
   const targetLtv = 0;
 
   const strategy = await hre.upgrades.deployProxy(

@@ -18,7 +18,7 @@ const moveBlocksForward = async (blocks) => {
   }
 };
 
-const toWantUnit = (num, decimals) => {
+const toWantUnit = (num, decimals = 6) => {
   if (decimals) {
     return ethers.BigNumber.from(num * 10 ** decimals);
   }
@@ -41,12 +41,11 @@ describe('Vaults', function () {
   const superAdminAddress = '0x9BC776dBb134Ef9D7014dB1823Cd755Ac5015203';
   const adminAddress = '0xeb9C9b785aA7818B2EBC8f9842926c4B9f707e4B';
   const guardianAddress = '0xb0C9D5851deF8A2Aac4A23031CA2610f8C3483F9';
-  const wethAddress = '0x4200000000000000000000000000000000000042';
-  const wantAddress = wethAddress;
-  const gWant = '0x30091e843deb234EBb45c7E1Da4bBC4C33B3f0B4';
+  const wantAddress = '0x7F5c764cBc14f9669B88837ca1490cCa17c31607';
+  const gWant = '0x7A0FDDBA78FF45D353B1630B77f4D175A00df0c0';
   const targetLtv = 0;
 
-  const wantHolderAddr = '0xEbe80f029b1c02862B9E8a70a7e5317C06F62Cae';
+  const wantHolderAddr = '0xD6216fC19DB775Df9774a6E33526131dA7D19a2c';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
 
   let owner;
@@ -298,7 +297,7 @@ describe('Vaults', function () {
 
     it('should allow small withdrawal', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
-      const depositAmount = toWantUnit('0.0000001');
+      const depositAmount = toWantUnit('0.0001');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       await strategy.harvest();
 
@@ -323,7 +322,7 @@ describe('Vaults', function () {
 
     it('should handle small deposit + redeem', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
-      const depositAmount = toWantUnit('0.000001');
+      const depositAmount = toWantUnit('0.0001');
       await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
       await strategy.harvest();
 
@@ -497,7 +496,7 @@ describe('Vaults', function () {
       await vault.connect(wantHolder).mint(depositShareIncrease, wantHolderAddr);
       userBalanceAfterMint = await want.balanceOf(wantHolderAddr);
       const mintedAssets = userBalance.sub(userBalanceAfterMint);
-      const allowedInaccuracy = 10;
+      const allowedInaccuracy = 200;
       expect(depositAmount).to.be.closeTo(mintedAssets, allowedInaccuracy);
     });
 
@@ -590,7 +589,7 @@ describe('Vaults', function () {
     });
 
     it('should lock profits from harvests', async function () {
-      const timeToSkip = 3600;
+      const timeToSkip = 360000;
       const initialUserBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = initialUserBalance;
 
