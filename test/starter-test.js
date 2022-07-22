@@ -34,50 +34,30 @@ describe('Vaults', function () {
 
   let Want;
   let want;
-  let wftm;
-  let dai;
-  let oath;
-  let stader;
 
-  const treasuryAddr = '0x0e7c5313E9BB80b654734d9b7aB1FB01468deE3b';
-  const paymentSplitterAddress = '0x63cbd4134c2253041F370472c130e92daE4Ff174';
+  const treasuryAddr = '0xeb9C9b785aA7818B2EBC8f9842926c4B9f707e4B';
+  const paymentSplitterAddress = '0x2b394b228908fb7DAcafF5F340f1b442a39B056C';
 
-  const superAdminAddress = '0x04C710a1E8a738CDf7cAD3a52Ba77A784C35d8CE';
-  const adminAddress = '0x539eF36C804e4D735d8cAb69e8e441c12d4B88E0';
-  const guardianAddress = '0xf20E25f2AB644C8ecBFc992a6829478a85A98F2c';
-  const maintainerAddress = '0x81876677843D00a7D792E1617459aC2E93202576';
-  const wftmAddress = '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83';
-  const daiAddress = '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E';
-  const usdcAddress = '0x04068DA6C83AFCFA0e13ba15A6696662335D5B75';
-  const wantAddress = wftmAddress;
-  const gWant = '0x98d5105370191D641f32589B35cDa9eCd367C74F';
-  const variableDebtWant = '0x0f7f11AA3C42aaa5e653EbEd07220B4392a976A4';
+  const superAdminAddress = '0x9BC776dBb134Ef9D7014dB1823Cd755Ac5015203';
+  const adminAddress = '0xeb9C9b785aA7818B2EBC8f9842926c4B9f707e4B';
+  const guardianAddress = '0xb0C9D5851deF8A2Aac4A23031CA2610f8C3483F9';
+  const wethAddress = '0x4200000000000000000000000000000000000042';
+  const wantAddress = wethAddress;
+  const gWant = '0x30091e843deb234EBb45c7E1Da4bBC4C33B3f0B4';
   const targetLtv = 0;
 
-  const wantHolderAddr = '0x431e81e5dfb5a24541b5ff8762bdef3f32f96354';
+  const wantHolderAddr = '0xEbe80f029b1c02862B9E8a70a7e5317C06F62Cae';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
-
-  const rewarderOwnerAddr = '0x33e7CCf4cc3ffC6c53221900D21a3c56422D0E0A';
-  const oathHolderAddr = '0xeFB7895B2e38eBa4243002DDD2b76965193F13F9';
-  const staderHolderAddr = '0x0459287c18076e173320314D360f5500C79dd5Fe';
-  const granaryRewarderAddr = '0x7780E1A8321BD58BBc76594Db494c7Bfe8e87040';
-
-  const oathAddr = '0x21ada0d2ac28c3a5fa3cd2ee30882da8812279b6';
-  const staderAddr = '0x412a13C109aC30f0dB80AD3Bd1DeFd5D0A6c0Ac6';
 
   let owner;
   let wantHolder;
   let strategist;
   let guardian;
-  let maintainer;
   let admin;
   let superAdmin;
   let unassignedRole;
   let targetLTV;
   let allowedLTVDrift;
-  let granaryOwner;
-  let oathHolder;
-  let staderHolder;
 
   beforeEach(async function () {
     //reset network
@@ -86,8 +66,7 @@ describe('Vaults', function () {
       params: [
         {
           forking: {
-            jsonRpcUrl: 'https://rpcapi-tracing.fantom.network/',
-            blockNumber: 42746217,
+            jsonRpcUrl: 'https://mainnet.optimism.io/',
           },
         },
       ],
@@ -120,40 +99,19 @@ describe('Vaults', function () {
       params: [guardianAddress],
     });
     guardian = await ethers.provider.getSigner(guardianAddress);
-    await hre.network.provider.request({
-      method: 'hardhat_impersonateAccount',
-      params: [maintainerAddress],
-    });
-    maintainer = await ethers.provider.getSigner(maintainerAddress);
-    await hre.network.provider.request({
-      method: 'hardhat_impersonateAccount',
-      params: [rewarderOwnerAddr],
-    });
-    granaryOwner = await ethers.provider.getSigner(rewarderOwnerAddr);
-    await hre.network.provider.request({
-      method: 'hardhat_impersonateAccount',
-      params: [oathHolderAddr],
-    });
-    oathHolder = await ethers.provider.getSigner(oathHolderAddr);
-    await hre.network.provider.request({
-      method: 'hardhat_impersonateAccount',
-      params: [staderHolderAddr],
-    });
-    staderHolder = await ethers.provider.getSigner(staderHolderAddr);
 
     //get artifacts
     Vault = await ethers.getContractFactory('ReaperVaultV2');
     Strategy = await ethers.getContractFactory('ReaperStrategyGranary');
     Want = await ethers.getContractFactory('@openzeppelin/contracts/token/ERC20/ERC20.sol:ERC20');
-
     //deploy contracts
     vault = await Vault.deploy(
       wantAddress,
-      'WFTM Crypt',
-      'rf-WFTM',
+      'OP Crypt',
+      'rf-OP',
       ethers.constants.MaxUint256,
       [strategistAddr],
-      [superAdminAddress, maintainerAddress, guardianAddress],
+      [superAdminAddress, adminAddress, guardianAddress],
     );
 
     strategy = await hre.upgrades.deployProxy(
@@ -172,117 +130,9 @@ describe('Vaults', function () {
     await strategy.deployed();
     await vault.addStrategy(strategy.address, 9000);
     want = await Want.attach(wantAddress);
-    wftm = await Want.attach(wftmAddress);
-    dai = await Want.attach(daiAddress);
-    oath = await Want.attach(oathAddr);
-    stader = await Want.attach(staderAddr);
 
     //approving LP token and vault share spend
     await want.connect(wantHolder).approve(vault.address, ethers.constants.MaxUint256);
-
-    // Start reward emissions
-    const rewarder = new ethers.Contract(granaryRewarderAddr, incentivesControllerABI, granaryOwner);
-    const emissionPerSecond = ethers.utils.parseEther('1');
-    console.log(`emissionPerSecond: ${emissionPerSecond}`);
-    const totalSupply = ethers.utils.parseEther('94976615.274089');
-
-    const blockStartTimestamp = 1657805485;
-    const hour = 3600;
-    const day = 24 * hour;
-    const week = 7 * day;
-    const distributionEnd = blockStartTimestamp + week;
-
-    await owner.sendTransaction({
-      to: rewarderOwnerAddr,
-      value: ethers.utils.parseEther('1'), // Sends exactly 1.0 ether
-    });
-
-    await rewarder.configureAssets([
-      {
-        emissionPerSecond,
-        totalSupply,
-        distributionEnd,
-        asset: gWant,
-        reward: oathAddr,
-      },
-    ]);
-    await rewarder.configureAssets([
-      {
-        emissionPerSecond,
-        totalSupply,
-        distributionEnd,
-        asset: gWant,
-        reward: staderAddr,
-      },
-    ]);
-    await rewarder.configureAssets([
-      {
-        emissionPerSecond,
-        totalSupply,
-        distributionEnd,
-        asset: variableDebtWant,
-        reward: oathAddr,
-      },
-    ]);
-    await rewarder.configureAssets([
-      {
-        emissionPerSecond,
-        totalSupply,
-        distributionEnd,
-        asset: variableDebtWant,
-        reward: staderAddr,
-      },
-    ]);
-
-    // struct StepTypeWithData {
-    //     HarvestStepType stepType;
-    //     address[] path; // path[0] is treated as feesToken for ChargeFees step
-    //     StepPercentageType percentageType;
-    //     uint256 percentage; // in basis points precision
-    // }
-
-    // step 1: swap totalFee % of OATH -> USDC using path OATH -> WFTM -> USDC
-    const step1 = {
-      stepType: 0, // swap
-      path: [oathAddr, wftmAddress, usdcAddress],
-      percentageType: 1, // totalFee %
-      percentage: 450,
-    };
-    // step 2: swap totalFee % of SD -> USDC using path SD -> USDC
-    const step2 = {
-      stepType: 0, // swap
-      path: [staderAddr, usdcAddress],
-      percentageType: 1, // totalFee %
-      percentage: 450,
-    };
-    // step 3: charge fees using all of USDC
-    const step3 = {
-      stepType: 1, // chargeFees
-      path: [usdcAddress],
-      percentageType: 0, // absolute %
-      percentage: 10_000,
-    };
-    // step 4: convert remaining OATH -> WFTM using path OATH -> WFTM
-    const step4 = {
-      stepType: 0, // swap
-      path: [oathAddr, wftmAddress],
-      percentageType: 0, // absolute %
-      percentage: 10_000,
-    };
-    // step 5: convert remaining SD -> WFTM using path SD -> USDC -> WFTM
-    const step5 = {
-      stepType: 0, // swap
-      path: [staderAddr, usdcAddress, wftmAddress],
-      percentageType: 0, // absolute %
-      percentage: 10_000,
-    };
-
-    await strategy.setHarvestSteps([step1, step2, step3, step4, step5]);
-
-    await rewarder.setRewardsVault(oathHolderAddr, oathAddr);
-    await rewarder.setRewardsVault(staderHolderAddr, staderAddr);
-    await oath.connect(oathHolder).approve(granaryRewarderAddr, ethers.utils.parseEther('999999999999999'));
-    await stader.connect(staderHolder).approve(granaryRewarderAddr, ethers.utils.parseEther('999999999999999'));
   });
 
   xdescribe('Deploying the vault and strategy', function () {
@@ -387,7 +237,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Vault Tests', function () {
+  describe('Vault Tests', function () {
     it('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const vaultBalance = await vault.totalAssets();

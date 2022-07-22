@@ -9,7 +9,7 @@ import "./interfaces/IAaveProtocolDataProvider.sol";
 import "./interfaces/IFlashLoanReceiver.sol";
 import "./interfaces/ILendingPool.sol";
 import "./interfaces/ILendingPoolAddressesProvider.sol";
-import "./interfaces/IRewardsController.sol";
+// import "./interfaces/IRewardsController.sol";
 
 import "./library/FixedPointMathLib.sol";
 
@@ -23,9 +23,9 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     using FixedPointMathLib for uint256;
 
     // 3rd-party contract addresses
-    address public constant ADDRESSES_PROVIDER_ADDRESS = 0x8b9D58E2Dc5e9b5275b62b1F30b3c0AC87138130;
-    address public constant DATA_PROVIDER = 0x3132870d08f736505FF13B19199be17629085072;
-    address public constant REWARDER = 0x7780E1A8321BD58BBc76594Db494c7Bfe8e87040;
+    address public constant ADDRESSES_PROVIDER_ADDRESS = 0xdDE5dC81e40799750B92079723Da2acAF9e1C6D6;
+    address public constant DATA_PROVIDER = 0x9546F673eF71Ff666ae66d01Fd6E7C6Dae5a9995;
+    // address public constant REWARDER = 0x7780E1A8321BD58BBc76594Db494c7Bfe8e87040;
 
     // this strategy's configurable tokens
     IAToken public gWant;
@@ -272,7 +272,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * @dev Claim rewards for supply and borrow
      */
     function _claimRewards() internal override {
-        IRewardsController(REWARDER).claimAllRewardsToSelf(rewardTokens);
+        // IRewardsController(REWARDER).claimAllRewardsToSelf(rewardTokens);
     }
 
     /**
