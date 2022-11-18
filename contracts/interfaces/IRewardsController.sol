@@ -3,7 +3,7 @@ pragma solidity 0.8.11;
 pragma experimental ABIEncoderV2;
 
 import {IRewardsDistributor} from "./IRewardsDistributor.sol";
-import {DistributionTypes} from "../library/DistributionTypes.sol";
+import {DistributionTypes} from "../libraries/DistributionTypes.sol";
 
 interface IRewardsController is IRewardsDistributor {
   event RewardsClaimed(

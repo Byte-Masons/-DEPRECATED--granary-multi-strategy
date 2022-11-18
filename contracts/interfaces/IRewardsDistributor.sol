@@ -2,7 +2,7 @@
 pragma solidity 0.8.11;
 pragma experimental ABIEncoderV2;
 
-import {DistributionTypes} from "../library/DistributionTypes.sol";
+import {DistributionTypes} from "../libraries/DistributionTypes.sol";
 
 interface IRewardsDistributor {
   event AssetConfigUpdated(

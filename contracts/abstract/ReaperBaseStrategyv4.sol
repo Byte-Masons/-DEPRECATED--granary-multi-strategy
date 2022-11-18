@@ -9,6 +9,9 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
+import "hardhat/console.sol";
+//v0.4.1 multistrategy + step based harvests
+
 abstract contract ReaperBaseStrategyv4 is IStrategy, UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -23,6 +26,42 @@ abstract contract ReaperBaseStrategyv4 is IStrategy, UUPSUpgradeable, AccessCont
     bool public emergencyExit;
     uint256 public lastHarvestTimestamp;
     uint256 public upgradeProposalTime;
+
+    /**
+     * We break down the harvest logic into the following operations:
+     * 1. Claiming rewards
+     * 2. A series of swaps as required, including charging fees in the desired token
+     * 3. Creating more of the strategy's underlying token.
+     *
+     * #1 and #3 are specific to each protocol.
+     * #2 however is mostly the same across all strats. So to make things more generic, we
+     * will execute #2 by iterating through a series of pre-defined "steps".
+     *
+     * Currently, a step can of type "Swap" or "ChargeFees".
+     */
+    enum HarvestStepType {
+        Swap,
+        ChargeFees
+    }
+
+    enum StepPercentageType {
+        Absolute, // use the actual percentage value
+        TotalFee // use {totalFee} and ignore the actual percentage value
+    }
+
+    struct StepTypeWithData {
+        HarvestStepType stepType;
+        address[] path; // path[0] is treated as feesToken for ChargeFees step
+        StepPercentageType percentageType;
+        uint256 percentage; // in basis points precision
+    }
+
+    /**
+     * This array holds all the swapping and fee-charging operations in sequence.
+     * {ADMIN} role or higher will be able to pop and push things to this array when
+     * the strategy is paused.
+     */
+    StepTypeWithData[] public steps;
 
     /**
      * Reaper Roles in increasing order of privilege.
@@ -104,7 +143,7 @@ abstract contract ReaperBaseStrategyv4 is IStrategy, UUPSUpgradeable, AccessCont
         totalFee = 450;
         callFee = 0;
         treasuryFee = 10000;
-        strategistFee = 2500;
+        strategistFee = 0;
 
         vault = _vault;
         treasury = _feeRemitters[0];
@@ -381,4 +420,55 @@ abstract contract ReaperBaseStrategyv4 is IStrategy, UUPSUpgradeable, AccessCont
             return i + 1;
         }
     }
+
+    /**
+     * Helper function that reads the {StepPercentageType} and returns
+     * the correct token % to use in the operation. If the percentage type
+     * is {TotalFee}, {_rawPercentage} is ignored and {totalFee} is returned.
+     * Otherwise, {_rawPercentage} is returned.
+     */
+    function _getStepPercentage(StepPercentageType _type, uint256 _rawPercentage)
+        internal
+        view
+        returns (uint256 percentage)
+    {
+        if (_type == StepPercentageType.TotalFee) {
+            percentage = totalFee;
+        } else {
+            percentage = _rawPercentage;
+        }
+    }
+
+    /**
+     * Only {ADMIN} or higher roles may set the array
+     * of steps executed as part of harvest.
+     */
+    function setHarvestSteps(StepTypeWithData[] calldata _newSteps) external {
+        _atLeastRole(ADMIN);
+        delete steps;
+
+        uint256 numSteps = _newSteps.length;
+        for (uint256 i = 0; i < numSteps; i = _uncheckedInc(i)) {
+            StepTypeWithData memory step = _newSteps[i];
+            uint256 pathLength = step.path.length;
+            if (step.stepType == HarvestStepType.Swap) {
+                require(pathLength > 1);
+                for (uint256 j = 0; j < pathLength; j = _uncheckedInc(j)) {
+                    require(step.path[j] != address(0));
+                }
+            } else {
+                require(pathLength == 1);
+                require(step.path[0] != address(0));
+            }
+
+            if (step.percentageType == StepPercentageType.Absolute) {
+                require(step.percentage != 0);
+                require(step.percentage <= PERCENT_DIVISOR);
+            }
+
+            steps.push(step);
+        }
+    }
+
+    function _swap(uint256 amount, address[] storage path) internal virtual;
 }
