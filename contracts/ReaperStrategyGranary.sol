@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: BUSL1.1
 
+pragma solidity ^0.8.0;
+
 import "./abstract/ReaperBaseStrategyv4.sol";
 import "./interfaces/IAToken.sol";
 import "./interfaces/IAaveProtocolDataProvider.sol";
@@ -7,20 +9,20 @@ import "./interfaces/IFlashLoanReceiver.sol";
 import "./interfaces/ILendingPool.sol";
 import "./interfaces/ILendingPoolAddressesProvider.sol";
 import "./interfaces/IRewardsController.sol";
-import "./interfaces/IUniswapV2Router02.sol";
+import "./libraries/ReaperMathUtils.sol";
+import "./mixins/UniMixin.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
-
-pragma solidity 0.8.11;
 
 /**
  * @dev This strategy will deposit and leverage a token on Granary to maximize yield
  */
-contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
+contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniMixin {
+    using ReaperMathUtils for uint256;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // 3rd-party contract addresses
-    address public constant UNI_ROUTER = address(0xF491e7B69E4244ad4002BC14e878a34207E38c29);
+    address public constant UNI_ROUTER = 0xF491e7B69E4244ad4002BC14e878a34207E38c29;
     ILendingPoolAddressesProvider public constant ADDRESS_PROVIDER =
         ILendingPoolAddressesProvider(0x8b9D58E2Dc5e9b5275b62b1F30b3c0AC87138130);
     IAaveProtocolDataProvider public constant DATA_PROVIDER =
@@ -51,16 +53,27 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     uint256 private constant DELEVER_SAFETY_ZONE = 9990;
     uint256 private constant MAX_WITHDRAW_SLIPPAGE_TOLERANCE = 200;
 
-    // A hold for funds that are still in the strategy but are not meant to be free
-    uint256 private mutexedFunds;
-
     /**
      * @dev Tokens Used:
      * {rewardClaimingTokens} - Array containing gWant + corresponding variable debt token,
      *                          used for claiming rewards
      */
-
     address[] public rewardClaimingTokens;
+
+    /**
+     * We break down the harvest logic into the following operations:
+     * 1. Claiming rewards
+     * 2. A series of swaps as required
+     * 3. Creating more of the strategy's underlying token, if necessary.
+     *
+     * #1 and #3 are specific to each protocol.
+     * #2 however is mostly the same across all strats. So to make things more generic, we
+     * will execute #2 by iterating through a series of pre-defined "steps".
+     * 
+     * This array holds all the swapping operations in sequence.
+     * {ADMIN} role or higher will be able to set this array.
+     */
+    address[][] public steps;
 
     /**
      * @dev Initializes the strategy. Sets parameters, saves routes, and gives allowances.
@@ -68,7 +81,6 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
      */
     function initialize(
         address _vault,
-        address[] memory _feeRemitters,
         address[] memory _strategists,
         address[] memory _multisigRoles,
         IAToken _gWant,
@@ -77,7 +89,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     ) public initializer {
         gWant = _gWant;
         want = _gWant.UNDERLYING_ASSET_ADDRESS();
-        __ReaperBaseStrategy_init(_vault, want, _feeRemitters, _strategists, _multisigRoles);
+        __ReaperBaseStrategy_init(_vault, want, _strategists, _multisigRoles);
         maxDeleverageLoopIterations = 10;
         minLeverageAmount = 1000;
         withdrawSlippageTolerance = 50;
@@ -125,47 +137,21 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     }
 
     /**
-     * @dev Core function of the strat, in charge of collecting and re-investing rewards.
+     * @dev Core function of the strat, in charge of collecting and swapping rewards
+     *      to produce more want.
      * @notice Assumes the deposit will take care of the TVL rebalancing.
-     * 1. Claims {SCREAM} from the comptroller.
-     * 2. Swaps {SCREAM} to {WFTM}.
-     * 3. Claims fees for the harvest caller and treasury.
-     * 4. Swaps the {WFTM} token for {want}
-     * 5. Deposits.
      */
-    function _harvestCore(uint256 _debt)
-        internal
-        override
-        returns (
-            uint256 callerFee,
-            int256 roi,
-            uint256 repayment
-        )
-    {
+    function _harvestCore(uint256 _debt) internal override returns (int256 roi, uint256 repayment) {
         _claimRewards();
         uint256 numSteps = steps.length;
-        for (uint256 i = 0; i < numSteps; i = _uncheckedInc(i)) {
-            StepTypeWithData storage step = steps[i];
-            IERC20Upgradeable startToken = IERC20Upgradeable(step.path[0]);
-            uint256 percentage = _getStepPercentage(step.percentageType, step.percentage);
-            uint256 amount = (startToken.balanceOf(address(this)) * percentage) / PERCENT_DIVISOR;
+        for (uint256 i = 0; i < numSteps; i = i.uncheckedInc()) {
+            address[] memory step = steps[i];
+            IERC20Upgradeable startToken = IERC20Upgradeable(step[0]);
+            uint256 amount = startToken.balanceOf(address(this));
             if (amount == 0) {
                 continue;
             }
-
-            if (step.stepType == HarvestStepType.Swap) {
-                _swap(amount, step.path);
-            } else if (step.stepType == HarvestStepType.ChargeFees) {
-                uint256 callFeeToUser = (amount * callFee) / PERCENT_DIVISOR;
-                callerFee += callFeeToUser;
-                uint256 treasuryFeeToVault = (amount * treasuryFee) / PERCENT_DIVISOR;
-                uint256 feeToStrategist = (treasuryFeeToVault * strategistFee) / PERCENT_DIVISOR;
-                treasuryFeeToVault -= feeToStrategist;
-
-                startToken.safeTransfer(msg.sender, callFeeToUser);
-                startToken.safeTransfer(treasury, treasuryFeeToVault);
-                startToken.safeTransfer(strategistRemitter, feeToStrategist);
-            }
+            _swapUni(amount, step, UNI_ROUTER);
         }
 
         uint256 allocated = IVault(vault).strategies(address(this)).allocated;
@@ -185,6 +171,27 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
         roi -= int256(loss);
     }
 
+    /**
+     * Only {ADMIN} or higher roles may set the array
+     * of steps executed as part of harvest.
+     */
+    function setHarvestSteps(address[][] calldata _newSteps) external {
+        _atLeastRole(ADMIN);
+        delete steps;
+
+        uint256 numSteps = _newSteps.length;
+        for (uint256 i = 0; i < numSteps; i = i.uncheckedInc()) {
+            address[] memory step = _newSteps[i];
+            uint256 pathLength = step.length;    
+            require(pathLength > 1);
+            for (uint256 j = 0; j < pathLength; j = j.uncheckedInc()) {
+                require(step[j] != address(0));
+            }
+
+            steps.push(step);
+        }
+    }
+
     function ADDRESSES_PROVIDER() public pure override returns (ILendingPoolAddressesProvider) {
         return ADDRESS_PROVIDER;
     }
@@ -195,7 +202,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
 
     function executeOperation(
         address[] calldata,
-        uint256[] calldata,
+        uint256[] calldata amounts,
         uint256[] calldata,
         address initiator,
         bytes calldata
@@ -208,8 +215,8 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
         // lender will automatically open a variable debt position
         // since flash loan was requested with interest rate mode VARIABLE
         address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
-        IERC20Upgradeable(want).safeIncreaseAllowance(lendingPoolAddress, balanceOfWant());
-        LENDING_POOL().deposit(address(want), balanceOfWant(), address(this), LENDER_REFERRAL_CODE_NONE);
+        IERC20Upgradeable(want).safeIncreaseAllowance(lendingPoolAddress, amounts[0]);
+        LENDING_POOL().deposit(address(want), amounts[0], address(this), LENDER_REFERRAL_CODE_NONE);
 
         return true;
     }
@@ -222,7 +229,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     function _deposit(uint256 toReinvest) internal {
         if (toReinvest != 0) {
             address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
-            IERC20Upgradeable(want).safeIncreaseAllowance(lendingPoolAddress, balanceOfWant());
+            IERC20Upgradeable(want).safeIncreaseAllowance(lendingPoolAddress, toReinvest);
             LENDING_POOL().deposit(want, toReinvest, address(this), LENDER_REFERRAL_CODE_NONE);
         }
 
@@ -253,9 +260,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
             _withdrawUnderlying(_amount);
         } else if (postWithdrawLtv < targetLtv) {
             _withdrawUnderlying(_amount);
-            mutexedFunds = _amount;
             _leverUpMax();
-            mutexedFunds = 0;
         } else {
             _withdrawUnderlying(_amount);
         }
@@ -329,26 +334,6 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
         uint256 withdrawable = supply - necessarySupply;
         _withdrawAmount = MathUpgradeable.min(_withdrawAmount, withdrawable);
         LENDING_POOL().withdraw(address(want), _withdrawAmount, address(this));
-    }
-
-    /**
-     * @dev Core harvest function.
-     * Swaps amount using path
-     * TODO Goob: slippage rails?
-     */
-    function _swap(uint256 amount, address[] storage path) internal override {
-        if (amount != 0) {
-            IERC20Upgradeable(path[0]).safeIncreaseAllowance(UNI_ROUTER, amount);
-            try
-                IUniswapV2Router02(UNI_ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
-                    amount,
-                    0,
-                    path,
-                    address(this),
-                    block.timestamp + 600
-                )
-            {} catch Error(string memory reason) {}
-        }
     }
 
     /**
@@ -426,7 +411,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     }
 
     function balanceOfWant() public view returns (uint256) {
-        return IERC20Upgradeable(want).balanceOf(address(this)) - mutexedFunds;
+        return IERC20Upgradeable(want).balanceOf(address(this));
     }
 
     function balanceOfPool() public view returns (uint256) {

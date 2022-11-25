@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: agpl-3.0
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity ^0.8.0;
 
@@ -495,7 +495,6 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
 
         if (_roi < 0) {
             vars.loss = uint256(-_roi);
-
             _reportLoss(vars.stratAddr, vars.loss);
         } else if (_roi > 0) {
             vars.gain = uint256(_roi);

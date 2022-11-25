@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: agpl-3.0
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity ^0.8.0;
 
@@ -13,9 +13,9 @@ interface IVault {
         uint256 lastReport; // block.timestamp of the last time a report occured
     }
 
-    function convertToAssets(uint256 shares) external view returns (uint256);
+    function getPricePerFullShare() external view returns (uint256);
 
-    function strategies(address strategy) external view returns (StrategyParams memory);
+    function strategies(address _strategy) external view returns (StrategyParams memory);
 
     /**
      * @notice Called by a strategy to determine the amount of capital that the vault is
@@ -31,7 +31,7 @@ interface IVault {
      * Strategy. Therefore, this function will be called by BaseStrategy to
      * make sure the integration is correct.
      */
-    function report(int256 roi, uint256 repayment) external returns (uint256);
+    function report(int256 _roi, uint256 _repayment) external returns (uint256);
 
     /**
      * This function should only be used in the scenario where the Strategy is
@@ -43,5 +43,5 @@ interface IVault {
      * market conditions leading to losses, or an imminent failure in an
      * external dependency.
      */
-    function revokeStrategy(address strategy) external;
+    function revokeStrategy(address _strategy) external;
 }
