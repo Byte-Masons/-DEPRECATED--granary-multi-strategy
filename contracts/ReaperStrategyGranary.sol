@@ -421,6 +421,15 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
     }
 
     /**
+     * @dev Updates target LTV (safely).
+     *      May be called by KEEPER.
+     */
+    function setLTVs(uint256 _newTargetLtv, uint256 _newMaxLtv) external {
+        _atLeastRole(KEEPER);
+        _safeUpdateTargetLtv(_newTargetLtv, _newMaxLtv);
+    }
+
+    /**
      * @dev Updates target LTV (safely), maximum iterations for the
      *      deleveraging loop, can only be called by strategist or owner.
      */
