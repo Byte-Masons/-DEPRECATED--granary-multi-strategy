@@ -13,8 +13,6 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @notice Implementation of a vault to deposit funds for yield optimizing.
  * This is the contract that receives funds and that users interface with.
@@ -165,8 +163,6 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
             lastReport: block.timestamp
         });
 
-        console.log("writing strategy allocated amount as: %s", strategies[_strategy].allocated);
-
         totalAllocBPS += _allocBPS;
         withdrawalQueue.push(_strategy);
         emit StrategyAdded(_strategy, _feeBPS, _allocBPS);
@@ -232,9 +228,6 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
 
         uint256 stratMaxAllocation = (strategies[stratAddr].allocBPS * balance()) / PERCENT_DIVISOR;
         uint256 stratCurrentAllocation = strategies[stratAddr].allocated;
-
-        console.log("stratCurrentAllocation: %s", stratCurrentAllocation);
-        console.log("stratMaxAllocation: %s", stratMaxAllocation);
 
         if (stratCurrentAllocation > stratMaxAllocation) {
             return -int256(stratCurrentAllocation - stratMaxAllocation);
@@ -437,8 +430,6 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
         StrategyParams storage stratParams = strategies[strategy];
         // Loss can only be up the amount of capital allocated to the strategy
         uint256 allocation = stratParams.allocated;
-        console.log("allocation %d", allocation);
-        console.log("loss %d", loss);
         require(loss <= allocation, "Strategy loss cannot be greater than allocation");
 
         if (totalAllocBPS != 0) {
@@ -502,12 +493,8 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
         StrategyParams storage strategy = strategies[vars.stratAddr];
         require(strategy.activation != 0, "Unauthorized strategy");
 
-        console.log("totalAllocBPS: %i", totalAllocBPS);
-
-
         if (_roi < 0) {
             vars.loss = uint256(-_roi);
-            console.log("roi: -%i", vars.loss);
 
             _reportLoss(vars.stratAddr, vars.loss);
         } else if (_roi > 0) {

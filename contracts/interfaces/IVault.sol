@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 interface IVault {
     struct StrategyParams {
         uint256 activation; // Activation block.timestamp
+        uint256 feeBPS; // Performance fee taken from profit, in BPS
         uint256 allocBPS; // Allocation in BPS of vault's total assets
         uint256 allocated; // Amount of capital allocated to this strategy
         uint256 gains; // Total returns that Strategy has realized for Vault

@@ -11,8 +11,6 @@ import "./interfaces/IUniswapV2Router02.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
-import "hardhat/console.sol";
-
 pragma solidity 0.8.11;
 
 /**
@@ -39,7 +37,6 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     uint256 public withdrawSlippageTolerance; // basis points precision, 50 = 0.5%
     uint256 public constant LTV_SAFETY_ZONE = 9800;
 
-
     /**
      * 0 - no flash loan in progress
      * 1 - deposit()-related flash loan in progress
@@ -53,6 +50,9 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     uint256 private constant INTEREST_RATE_MODE_VARIABLE = 2;
     uint256 private constant DELEVER_SAFETY_ZONE = 9990;
     uint256 private constant MAX_WITHDRAW_SLIPPAGE_TOLERANCE = 200;
+
+    // A hold for funds that are still in the strategy but are not meant to be free
+    uint256 private mutexedFunds;
 
     /**
      * @dev Tokens Used:
@@ -142,7 +142,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
             uint256 repayment
         )
     {
-       _claimRewards();
+        _claimRewards();
         uint256 numSteps = steps.length;
         for (uint256 i = 0; i < numSteps; i = _uncheckedInc(i)) {
             StepTypeWithData storage step = steps[i];
@@ -167,14 +167,10 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
                 startToken.safeTransfer(strategistRemitter, feeToStrategist);
             }
         }
-        _deposit(balanceOfWant());
 
         uint256 allocated = IVault(vault).strategies(address(this)).allocated;
-        console.log("allocated: %s", allocated);
         uint256 totalAssets = balanceOf();
-        console.log("totalAssets: %s", totalAssets);
         uint256 toFree = _debt;
-        console.log("toFree: %s", toFree);
 
         if (totalAssets > allocated) {
             uint256 profit = totalAssets - allocated;
@@ -257,7 +253,9 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
             _withdrawUnderlying(_amount);
         } else if (postWithdrawLtv < targetLtv) {
             _withdrawUnderlying(_amount);
+            mutexedFunds = _amount;
             _leverUpMax();
+            mutexedFunds = 0;
         } else {
             _withdrawUnderlying(_amount);
         }
@@ -338,16 +336,18 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
      * Swaps amount using path
      * TODO Goob: slippage rails?
      */
-    function _swap(uint256 amount, address[] storage path) internal override{
+    function _swap(uint256 amount, address[] storage path) internal override {
         if (amount != 0) {
             IERC20Upgradeable(path[0]).safeIncreaseAllowance(UNI_ROUTER, amount);
-            IUniswapV2Router02(UNI_ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
-                amount,
-                0,
-                path,
-                address(this),
-                block.timestamp + 600
-            );
+            try
+                IUniswapV2Router02(UNI_ROUTER).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                    amount,
+                    0,
+                    path,
+                    address(this),
+                    block.timestamp + 600
+                )
+            {} catch Error(string memory reason) {}
         }
     }
 
@@ -426,7 +426,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
     }
 
     function balanceOfWant() public view returns (uint256) {
-        return IERC20Upgradeable(want).balanceOf(address(this));
+        return IERC20Upgradeable(want).balanceOf(address(this)) - mutexedFunds;
     }
 
     function balanceOfPool() public view returns (uint256) {
@@ -466,5 +466,12 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver {
         targetLtv = _newTargetLtv;
     }
 
-   
+    function calculateLTV() external view returns (uint256 ltv) {
+        (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
+        if (supply != 0) {
+            ltv = (borrow * PERCENT_DIVISOR) / supply;
+        } else {
+            ltv = 0;
+        }
+    }
 }
