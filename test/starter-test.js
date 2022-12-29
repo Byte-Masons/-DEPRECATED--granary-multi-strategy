@@ -159,7 +159,6 @@ describe('Vaults', function () {
       Strategy,
       [
         vault.address,
-        [treasuryAddr, paymentSplitterAddress],
         [strategistAddr],
         [superAdminAddress, adminAddress, guardianAddress],
         gWant,
@@ -199,34 +198,13 @@ describe('Vaults', function () {
     // }
 
     // step 1: swap all of OATH -> USDC using path OATH -> USDC
-    const step1 = {
-      stepType: 0, // swap
-      path: [oathAddr, usdcAddr],
-      percentageType: 0, // absolute %
-      percentage: 10_000,
-    };
+    const step1 = [oathAddr, usdcAddr];
     // step 2: swap all of SD -> USDC using path SD -> USDC
-    const step2 = {
-      stepType: 0, // swap
-      path: [staderAddr, usdcAddr],
-      percentageType: 0, // absolute %
-      percentage: 10_000,
-    };
-    // step 3: charge fees using totalFee% of USDC
-    const step3 = {
-      stepType: 1, // chargeFees
-      path: [usdcAddr],
-      percentageType: 1, // totalFee %
-      percentage: 450,
-    };
-    // step 4: convert all remaining USDC -> wFTM
-    const step4 = {
-      stepType: 0, // swap
-      path: [usdcAddr, wantAddress],
-      percentageType: 0, // absolute %
-      percentage: 10_000,
-    };
-    await strategy.setHarvestSteps([step1, step2, step3, step4]);
+    const step2 = [staderAddr, usdcAddr];
+
+    // step 3: convert all remaining USDC -> wFTM
+    const step3 = [usdcAddr, wantAddress];
+    await strategy.setHarvestSteps([step1, step2, step3]);
   });
 
   xdescribe('Deploying the vault and strategy', function () {
