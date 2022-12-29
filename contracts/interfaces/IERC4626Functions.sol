@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: agpl-3.0
 
-pragma solidity 0.8.11;
+pragma solidity ^0.8.0;
 
-interface IERC4626 {
+interface IERC4626Functions {
     function asset() external view returns (address assetTokenAddress);
 
     function totalAssets() external view returns (uint256 totalManagedAssets);
@@ -42,13 +42,4 @@ interface IERC4626 {
         address receiver,
         address owner
     ) external returns (uint256 assets);
-
-    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
-    event Withdraw(
-        address indexed caller,
-        address indexed receiver,
-        address indexed owner,
-        uint256 assets,
-        uint256 shares
-    );
 }
