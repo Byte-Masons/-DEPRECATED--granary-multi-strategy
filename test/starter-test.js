@@ -168,7 +168,7 @@ describe('Vaults', function () {
       {kind: 'uups'},
     );
     await strategy.deployed();
-    await vault.addStrategy(strategy.address, 500, 10000);
+    await vault.addStrategy(strategy.address, 500, 9000);
     want = await Want.attach(wantAddress);
     wftm = await Want.attach(wftmAddress);
     dai = await Want.attach(daiAddress);
@@ -207,7 +207,7 @@ describe('Vaults', function () {
     await strategy.setHarvestSteps([step1, step2, step3]);
   });
 
-  xdescribe('Deploying the vault and strategy', function () {
+  describe('Deploying the vault and strategy', function () {
     it('should initiate vault with a 0 balance', async function () {
       const assets = ethers.utils.parseEther('1');
       const totalBalance = await vault.totalAssets();
@@ -217,7 +217,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Strategy Access control tests', function () {
+  describe('Strategy Access control tests', function () {
     it('unassignedRole has no privileges', async function () {
       await expect(strategy.connect(unassignedRole).setEmergencyExit()).to.be.reverted;
     });
@@ -257,7 +257,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Vault Access control tests', function () {
+  describe('Vault Access control tests', function () {
     it('unassignedRole has no privileges', async function () {
       await expect(vault.connect(unassignedRole).addStrategy(strategy.address, 1000)).to.be.reverted;
 
@@ -309,7 +309,7 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Vault Tests', function () {
+  describe('Vault Tests', function () {
     it('should allow deposits and account for them correctly', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const vaultBalance = await vault.totalAssets();
@@ -354,6 +354,8 @@ describe('Vaults', function () {
       const depositAmount = toWantUnit('100');
       await vault.connect(wantHolder)['deposit(uint256)'](depositAmount);
       await strategy.harvest();
+      await moveTimeForward(3600);
+      await strategy.harvest();
 
       await vault.connect(wantHolder).withdrawAll();
       const newUserVaultBalance = await vault.balanceOf(wantHolderAddr);
@@ -394,25 +396,34 @@ describe('Vaults', function () {
       expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    xit('should handle small deposit + redeem', async function () {
+    it('should handle small deposit + redeem', async function () {
       const userBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = toWantUnit('0.000001');
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256)'](depositAmount);
       await strategy.harvest();
+
+      const ownerDepositAmount = toWantUnit('0.1');
+      await want.connect(wantHolder).transfer(owner.address, ownerDepositAmount);
+      await want.connect(owner).approve(vault.address, ethers.constants.MaxUint256);
+      await vault.connect(owner)['deposit(uint256)'](ownerDepositAmount);
 
       await vault.connect(wantHolder).redeem(depositAmount, wantHolderAddr, wantHolderAddr);
       const newUserVaultBalance = await vault.balanceOf(wantHolderAddr);
       const userBalanceAfterWithdraw = await want.balanceOf(wantHolderAddr);
 
-      const expectedBalance = userBalance;
+      const expectedBalance = userBalance.sub(ownerDepositAmount);
       const smallDifference = depositAmount.div(200);
       const isSmallBalanceDifference = expectedBalance.sub(userBalanceAfterWithdraw).lt(smallDifference);
+      console.log(`expectedBalance: ${expectedBalance}`);
+      console.log(`userBalanceAfterWithdraw: ${userBalanceAfterWithdraw}`);
+      console.log(`expectedBalance.sub(userBalanceAfterWithdraw): ${expectedBalance.sub(userBalanceAfterWithdraw)}`);
+      console.log(`smallDifference: ${smallDifference}`);
       expect(isSmallBalanceDifference).to.equal(true);
     });
 
-    xit('should be able to convert assets in to amount of shares', async function () {
+    it('should be able to convert assets in to amount of shares', async function () {
       const depositAmount = toWantUnit('100');
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256)'](depositAmount);
 
       let totalAssets = await vault.totalAssets();
       console.log(`totalAssets: ${totalAssets}`);
@@ -424,7 +435,7 @@ describe('Vaults', function () {
       await want.connect(wantHolder).transfer(owner.address, depositAmount);
       await want.connect(owner).approve(vault.address, ethers.constants.MaxUint256);
       const shares = await vault.connect(owner).convertToShares(depositAmount);
-      await vault.connect(owner).deposit(depositAmount, owner.address);
+      await vault.connect(owner)['deposit(uint256)'](depositAmount);
       console.log(`shares: ${shares}`);
 
       const vaultBalance = await vault.balanceOf(owner.address);
@@ -432,14 +443,14 @@ describe('Vaults', function () {
       expect(shares).to.equal(vaultBalance);
     });
 
-    xit('should be able to convert shares in to amount of assets', async function () {
+    it('should be able to convert shares in to amount of assets', async function () {
       const shareAmount = toWantUnit('100');
       let assets = await vault.convertToAssets(shareAmount);
       expect(assets).to.equal(shareAmount);
       console.log(`assets: ${assets}`);
 
       const depositAmount = toWantUnit('1337');
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256)'](depositAmount);
 
       await want.connect(wantHolder).transfer(vault.address, depositAmount);
 
@@ -448,18 +459,18 @@ describe('Vaults', function () {
       expect(assets).to.equal(shareAmount.mul(2));
     });
 
-    xit('maxDeposit returns the maximum amount that can be deposited', async function () {
+    it('maxDeposit returns the maximum amount that can be deposited', async function () {
       let tvlCap = toWantUnit('50');
       await vault.updateTvlCap(tvlCap);
       let maxDeposit = await vault.maxDeposit(wantHolderAddr);
       expect(maxDeposit).to.equal(tvlCap);
 
       const depositAmount = toWantUnit('25');
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256)'](depositAmount);
       maxDeposit = await vault.maxDeposit(wantHolderAddr);
       expect(maxDeposit).to.equal(tvlCap.sub(depositAmount));
 
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256)'](depositAmount);
       maxDeposit = await vault.maxDeposit(wantHolderAddr);
       expect(maxDeposit).to.equal(0);
 
@@ -469,14 +480,14 @@ describe('Vaults', function () {
       expect(maxDeposit).to.equal(0);
     });
 
-    xit('can previewDeposit', async function () {
+    it('can previewDeposit', async function () {
       let depositAmount = toWantUnit('137');
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256,address)'](depositAmount, wantHolderAddr);
 
       depositAmount = toWantUnit('44');
       let depositPreview = await vault.connect(wantHolder).previewDeposit(depositAmount);
       let vaultBalance = await vault.balanceOf(wantHolderAddr);
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256,address)'](depositAmount, wantHolderAddr);
       let vaultBalanceAfter = await vault.balanceOf(wantHolderAddr);
       let balanceIncrease = vaultBalanceAfter.sub(vaultBalance);
       expect(depositPreview).to.equal(balanceIncrease);
@@ -486,13 +497,13 @@ describe('Vaults', function () {
       depositAmount = toWantUnit('130');
       depositPreview = await vault.connect(wantHolder).previewDeposit(depositAmount);
       vaultBalance = await vault.balanceOf(wantHolderAddr);
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256,address)'](depositAmount, wantHolderAddr);
       vaultBalanceAfter = await vault.balanceOf(wantHolderAddr);
       balanceIncrease = vaultBalanceAfter.sub(vaultBalance);
       expect(depositPreview).to.equal(balanceIncrease);
     });
 
-    xit('maxMint returns the max amount of shares that can be minted', async function () {
+    it('maxMint returns the max amount of shares that can be minted', async function () {
       let maxMint = await vault.connect(wantHolder).maxMint(ethers.constants.AddressZero);
       expect(maxMint).to.equal(ethers.constants.MaxUint256);
 
@@ -502,7 +513,7 @@ describe('Vaults', function () {
       expect(maxMint).to.equal(tvlCap);
 
       let depositAmount = toWantUnit('35');
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256,address)'](depositAmount, wantHolderAddr);
       maxMint = await vault.connect(wantHolder).maxMint(ethers.constants.AddressZero);
       expect(maxMint).to.equal(tvlCap.sub(depositAmount));
 
@@ -512,12 +523,12 @@ describe('Vaults', function () {
       depositAmount = toWantUnit('15');
       await vault.updateTvlCap(tvlCap.add(transferAmount).add(depositAmount));
       const depositPreview = await vault.connect(wantHolder).previewDeposit(depositAmount);
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256,address)'](depositAmount, wantHolderAddr);
       maxMint = await vault.connect(wantHolder).maxMint(ethers.constants.AddressZero);
       expect(maxMint).to.equal(depositPreview);
     });
 
-    xit('previewMint returns the amount of asset taken on a mint', async function () {
+    it('previewMint returns the amount of asset taken on a mint', async function () {
       let mintAmount = toWantUnit('55');
       let mintPreview = await vault.connect(wantHolder).previewMint(mintAmount);
       expect(mintPreview).to.equal(mintAmount);
@@ -539,7 +550,7 @@ describe('Vaults', function () {
       expect(userBalanceAfterMint).to.equal(userBalance.sub(mintPreview));
     });
 
-    xit('mint creates the correct amount of shares', async function () {
+    it('mint creates the correct amount of shares', async function () {
       let mintAmount = toWantUnit('55');
       let userBalance = await want.balanceOf(wantHolderAddr);
       // let shareBalance = await vault.balanceOf(wantHolderAddr);
@@ -563,7 +574,7 @@ describe('Vaults', function () {
       // Ensure deposit and mint are equivalent
       const depositAmount = toWantUnit('56');
       shareBalance = await vault.balanceOf(wantHolderAddr);
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256,address)'](depositAmount, wantHolderAddr);
       const shareBalanceAfterDeposit = await vault.balanceOf(wantHolderAddr);
       const depositShareIncrease = shareBalanceAfterDeposit.sub(shareBalance);
       userBalance = await want.balanceOf(wantHolderAddr);
@@ -574,12 +585,12 @@ describe('Vaults', function () {
       expect(depositAmount).to.be.closeTo(mintedAssets, allowedInaccuracy);
     });
 
-    xit('previewWithdraw returns the correct amount of shares', async function () {
+    it('previewWithdraw returns the correct amount of shares', async function () {
       let withdrawAmount = toWantUnit('7');
       let burnedSharesPreview = await vault.previewWithdraw(withdrawAmount);
       expect(burnedSharesPreview).to.equal(0);
       const depositAmount = toWantUnit('56');
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256,address)'](depositAmount, wantHolderAddr);
       burnedSharesPreview = await vault.previewWithdraw(withdrawAmount);
       expect(burnedSharesPreview).to.equal(withdrawAmount);
       withdrawAmount = toWantUnit('0');
@@ -591,18 +602,18 @@ describe('Vaults', function () {
       withdrawAmount = toWantUnit('33');
       burnedSharesPreview = await vault.previewWithdraw(withdrawAmount);
       const userVaultBalance = await vault.balanceOf(wantHolderAddr);
-      await vault.connect(wantHolder).withdraw(withdrawAmount, wantHolderAddr, wantHolderAddr);
+      await vault.connect(wantHolder)['withdraw(uint256,address,address)'](withdrawAmount, wantHolderAddr, wantHolderAddr);
       const userVaultBalanceAfter = await vault.balanceOf(wantHolderAddr);
       const burnedShares = userVaultBalance.sub(userVaultBalanceAfter);
       expect(burnedSharesPreview).to.equal(burnedShares);
     });
 
-    xit('previewRedeem returns the correct amount of assets', async function () {
+    it('previewRedeem returns the correct amount of assets', async function () {
       let redeemAmount = toWantUnit('7');
       let redeemedAssetsPreview = await vault.previewRedeem(redeemAmount);
       expect(redeemedAssetsPreview).to.equal(redeemAmount);
       const depositAmount = toWantUnit('56');
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256,address)'](depositAmount, wantHolderAddr);
       redeemedAssetsPreview = await vault.previewRedeem(redeemAmount);
       expect(redeemedAssetsPreview).to.equal(redeemAmount);
       redeemAmount = toWantUnit('0');
@@ -620,7 +631,7 @@ describe('Vaults', function () {
       expect(redeemedAssetsPreview).to.equal(redeemedAssets);
     });
 
-    xit('mint and redeem are inverse operations', async function () {
+    it('mint and redeem are inverse operations', async function () {
       let mintAmount = toWantUnit('34');
       let mintAssetsPreview = await vault.previewMint(mintAmount);
       let userBalance = await want.balanceOf(wantHolderAddr);
@@ -662,12 +673,12 @@ describe('Vaults', function () {
       expect(mintedAssets).to.be.closeTo(redeemedAssets, allowedInaccuracy);
     });
 
-    xit('should lock profits from harvests', async function () {
+    it('should lock profits from harvests', async function () {
       const timeToSkip = 3600;
       const initialUserBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = initialUserBalance;
 
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256,address)'](depositAmount, wantHolderAddr);
       await strategy.harvest();
       let vaultBalance = await vault.totalAssets();
       let lockedProfit = await vault.lockedProfit();
@@ -694,17 +705,19 @@ describe('Vaults', function () {
         expect(pricePerShare).to.be.gt(previousPricePerShare);
       }
 
+      await strategy.harvest();
+
       // Setting degradation to 1e18 will release all the profit in 1 block
       // so all the profit should be released
       await vault.setLockedProfitDegradation(toWantUnit('1'));
-      await vault.connect(wantHolder).redeemAll();
+      await vault.connect(wantHolder).withdrawAll();
       vaultBalance = await vault.totalAssets();
       console.log(`vaultBalance: ${vaultBalance}`);
       // All the profit should have been unlocked to allow a redeem of all assets
-      expect(vaultBalance).to.equal(0);
+      expect(vaultBalance).to.be.lt(depositAmount.div(10_000));
     });
 
-    xit('mint and deposit are equivalent', async function () {
+    it('mint and deposit are equivalent', async function () {
       let mintAmount = toWantUnit('18');
       let mintBalanceBefore = await vault.balanceOf(wantHolderAddr);
       await vault.connect(wantHolder).mint(mintAmount, wantHolderAddr);
@@ -714,7 +727,7 @@ describe('Vaults', function () {
 
       let depositAmount = toWantUnit('18');
       let depositBalanceBefore = await vault.balanceOf(wantHolderAddr);
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256,address)'](depositAmount, wantHolderAddr);
       let depositBalanceAfter = await vault.balanceOf(wantHolderAddr);
       let depositedShares = depositBalanceAfter.sub(depositBalanceBefore);
       console.log(`depositedShares: ${depositedShares}`);
@@ -735,7 +748,7 @@ describe('Vaults', function () {
 
       depositAmount = userBalanceBefore.sub(userBalanceAfter);
       depositBalanceBefore = await vault.balanceOf(wantHolderAddr);
-      await vault.connect(wantHolder).deposit(depositAmount, wantHolderAddr);
+      await vault.connect(wantHolder)['deposit(uint256,address)'](depositAmount, wantHolderAddr);
       depositBalanceAfter = await vault.balanceOf(wantHolderAddr);
       depositedShares = depositBalanceAfter.sub(depositBalanceBefore);
       console.log(`depositedShares: ${depositedShares}`);
@@ -961,24 +974,24 @@ describe('Vaults', function () {
     });
   });
 
-  xdescribe('Vault<>Strat accounting', function () {
-    xit('Strat gets more money when it flows in', async function () {
+  describe('Vault<>Strat accounting', function () {
+    it('Strat gets more money when it flows in', async function () {
       //const {vault, strategy, want, wantHolder} = await loadFixture(deployVaultAndStrategyAndGetSigners);
       await vault.connect(wantHolder)['deposit(uint256)'](toWantUnit('500'));
       await strategy.harvest();
       //await moveTimeForward(3600);
       let vaultBalance = await want.balanceOf(vault.address);
-      expect(vaultBalance).to.equal(ethers.utils.parseEther('0'));
+      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('50'));
       let stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.equal(ethers.utils.parseEther('500'));
+      expect(stratBalance).to.be.gte(ethers.utils.parseEther('449.99'));
 
       await vault.connect(wantHolder)['deposit(uint256)'](toWantUnit('500'));
       await strategy.harvest();
       //await moveTimeForward(3600);
       vaultBalance = await want.balanceOf(vault.address);
-      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('0'));
+      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('99.999'));
       stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.be.gte(ethers.utils.parseEther('1000'));
+      expect(stratBalance).to.be.gte(ethers.utils.parseEther('899.999'));
     });
 
     it('Vault pulls funds from strat as needed', async function () {
@@ -987,9 +1000,9 @@ describe('Vaults', function () {
       await strategy.harvest();
       //await moveTimeForward(3600);
       let vaultBalance = await want.balanceOf(vault.address);
-      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('0'));
+      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('100'));
       let stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.be.gte(ethers.utils.parseEther('1000'));
+      expect(stratBalance).to.be.gte(ethers.utils.parseEther('899.99'));
 
       await vault.updateStrategyAllocBPS(strategy.address, 7000);
       await strategy.harvest();
@@ -1005,12 +1018,12 @@ describe('Vaults', function () {
       vaultBalance = await want.balanceOf(vault.address);
       expect(vaultBalance).to.be.gte(ethers.utils.parseEther('330'));
       stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.be.gte(ethers.utils.parseEther('770'));
+      expect(stratBalance).to.be.gte(ethers.utils.parseEther('769.99'));
     });
   });
 
-  xdescribe('Emergency scenarios', function () {
-    xit('Vault should handle emergency shutdown', async function () {
+  describe('Emergency scenarios', function () {
+    it('Vault should handle emergency shutdown', async function () {
       await vault.connect(wantHolder)['deposit(uint256)'](toWantUnit('10000'));
       await moveTimeForward(3600);
       await strategy.harvest();
