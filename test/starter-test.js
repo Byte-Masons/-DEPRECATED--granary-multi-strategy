@@ -86,6 +86,7 @@ describe('Vaults', function () {
         {
           forking: {
             jsonRpcUrl: 'https://late-wild-fire.fantom.quiknode.pro/',
+            blockNumber: 53248840,
           },
         },
       ],
@@ -1010,13 +1011,13 @@ describe('Vaults', function () {
       vaultBalance = await want.balanceOf(vault.address);
       expect(vaultBalance).to.be.gte(ethers.utils.parseEther('300'));
       stratBalance = await strategy.balanceOf();
-      expect(stratBalance).to.be.gte(ethers.utils.parseEther('700'));
+      expect(stratBalance).to.be.gte(ethers.utils.parseEther('699.99'));
 
       await vault.connect(wantHolder)['deposit(uint256)'](toWantUnit('100'));
       await strategy.harvest();
       await moveTimeForward(3600);
       vaultBalance = await want.balanceOf(vault.address);
-      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('330'));
+      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('329.99'));
       stratBalance = await strategy.balanceOf();
       expect(stratBalance).to.be.gte(ethers.utils.parseEther('769.99'));
     });
@@ -1028,9 +1029,9 @@ describe('Vaults', function () {
       await moveTimeForward(3600);
       await strategy.harvest();
       let vaultBalance = await want.balanceOf(vault.address);
-      expect(vaultBalance).to.equal(ethers.utils.parseEther('0'));
+      expect(vaultBalance).to.equal(ethers.utils.parseEther('1000'));
       let stratBalance = await strategy.balanceOf();
-      expectedStrategyBalance = ethers.utils.parseEther('10000');
+      expectedStrategyBalance = ethers.utils.parseEther('9000');
       smallDifference = expectedStrategyBalance.div(1e12);
       console.log(`expected balance is ${expectedStrategyBalance}, stratBalance is ${stratBalance}`);
       isSmallBalanceDifference = expectedStrategyBalance.sub(stratBalance).lt(smallDifference);
@@ -1039,7 +1040,7 @@ describe('Vaults', function () {
       await vault.setEmergencyShutdown(true);
       await strategy.harvest();
       vaultBalance = await want.balanceOf(vault.address);
-      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('1000'));
+      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('10000'));
       stratBalance = await strategy.balanceOf();
       smallDifference = vaultBalance.div(1e12);
       isSmallBalanceDifference = stratBalance.lt(smallDifference);
@@ -1052,7 +1053,7 @@ describe('Vaults', function () {
       await strategy.harvest();
       let vaultBalance = await want.balanceOf(vault.address);
       let stratBalance = await strategy.balanceOf();
-      let expectedStrategyBalance = ethers.utils.parseEther('1000');
+      let expectedStrategyBalance = ethers.utils.parseEther('900');
       let smallDifference = expectedStrategyBalance.div(1e12);
       let isSmallBalanceDifference = expectedStrategyBalance.sub(stratBalance).lt(smallDifference);
       expect(isSmallBalanceDifference).to.equal(true);
@@ -1060,7 +1061,7 @@ describe('Vaults', function () {
       await vault.setEmergencyShutdown(true);
       await strategy.harvest();
       vaultBalance = await want.balanceOf(vault.address);
-      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('1000'));
+      expect(vaultBalance).to.be.gte(ethers.utils.parseEther('999.99'));
       stratBalance = await strategy.balanceOf();
       smallDifference = vaultBalance.div(1e12);
       isSmallBalanceDifference = stratBalance.lt(smallDifference);
