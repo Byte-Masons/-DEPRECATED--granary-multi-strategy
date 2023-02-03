@@ -50,6 +50,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
     // Misc constants
     uint16 private constant LENDER_REFERRAL_CODE_NONE = 0;
     uint256 private constant INTEREST_RATE_MODE_VARIABLE = 2;
+    uint256 private constant LEVER_SAFETY_ZONE = 9250;
     uint256 private constant DELEVER_SAFETY_ZONE = 9990;
     uint256 private constant MAX_WITHDRAW_SLIPPAGE_TOLERANCE = 200;
 
@@ -318,8 +319,46 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         uint256 desiredBorrow = (realSupply * targetLtv) / (PERCENT_DIVISOR - targetLtv);
 
         if (desiredBorrow > borrow + minLeverageAmount) {
-            _initFlashLoan(desiredBorrow - borrow, INTEREST_RATE_MODE_VARIABLE, DEPOSIT_FL_IN_PROGRESS);
+            uint256 borrowIncrease = desiredBorrow - borrow;
+
+            // flash loan only if gToken has enough want liquidity
+            if (IERC20Upgradeable(want).balanceOf(address(gWant)) >= borrowIncrease) {
+                _initFlashLoan(borrowIncrease, INTEREST_RATE_MODE_VARIABLE, DEPOSIT_FL_IN_PROGRESS);
+            } else {
+                // otherwise, lever up in increments using a loop
+                for (uint256 i = 0; i < maxDeleverageLoopIterations && borrowIncrease > minLeverageAmount; i++) {
+                    borrowIncrease -= _leverUpStep(borrowIncrease);
+                }
+            }
         }
+    }
+
+    /**
+     * @dev Leverages up one step in an attempt to increase borrow by {_totalBorrowIncrease}.
+     *      Returns the actual amount by which borrow was increased.
+     */
+    function _leverUpStep(uint256 _totalBorrowIncrease) internal returns (uint256) {
+        (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
+        (, , uint256 threshLtv, , , , , , , ) = IAaveProtocolDataProvider(DATA_PROVIDER).getReserveConfigurationData(
+            address(want)
+        );
+        uint256 threshBorrow = (supply * threshLtv) / PERCENT_DIVISOR;
+
+        // don't use 100% of borrow allowance, leave a smidge
+        uint256 allowance = ((threshBorrow - borrow) * LEVER_SAFETY_ZONE) / PERCENT_DIVISOR;
+        allowance = MathUpgradeable.min(allowance, IERC20Upgradeable(want).balanceOf(address(gWant)));
+        allowance = MathUpgradeable.min(allowance, _totalBorrowIncrease);
+        allowance -= 10; // safety reduction to compensate for rounding errors
+
+        if (allowance != 0) {
+            ILendingPool pool = LENDING_POOL();
+            pool.borrow(address(want), allowance, INTEREST_RATE_MODE_VARIABLE, LENDER_REFERRAL_CODE_NONE, address(this));
+            address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
+            IERC20Upgradeable(want).safeIncreaseAllowance(lendingPoolAddress, allowance);
+            pool.deposit(address(want), allowance, address(this), LENDER_REFERRAL_CODE_NONE);
+        }
+
+        return allowance;
     }
 
     /**

@@ -13,7 +13,7 @@
     },
     {
       "address": "0xC9a43158891282A2B1475592D5719c001986Aaec",
-      "txHash": "0x7986e6563196eb60d7c18eb997b0ecea157750bef8c298f0fd87044e58d00a59",
+      "txHash": "0xddd2ac900cfffe7b6baf245ff29b897612f4f550d0b258a616b8b706f67ab498",
       "kind": "uups"
     }
   ],
@@ -332,9 +332,9 @@
         }
       }
     },
-    "86a7f2538bd7716e3af0e72ffd5f8bc7882fd43f96f67ad234ac2b97d36f046c": {
+    "3852fb15dc0a579847690ce2e7b0edff3c11e112a221e5842a9f13a0e8adf3c7": {
       "address": "0x46b142DD1E924FAb83eCc3c08e4D46E82f005e0E",
-      "txHash": "0xb4b87faa71b074b0574fe4f02a25bf720f7657386172ffe48246489dc9a53f33",
+      "txHash": "0x28e21f2546ae534fe87245f653659786f00543f8c0c7b5e30ab03fe8324c2263",
       "layout": {
         "storage": [
           {
@@ -401,89 +401,89 @@
             "contract": "ReaperBaseStrategyv4",
             "label": "want",
             "type": "t_address",
-            "src": "contracts/abstract/ReaperBaseStrategyv4.sol:41"
+            "src": "contracts/abstract/ReaperBaseStrategyv4.sol:28"
           },
           {
             "contract": "ReaperBaseStrategyv4",
             "label": "emergencyExit",
             "type": "t_bool",
-            "src": "contracts/abstract/ReaperBaseStrategyv4.sol:43"
+            "src": "contracts/abstract/ReaperBaseStrategyv4.sol:30"
           },
           {
             "contract": "ReaperBaseStrategyv4",
             "label": "lastHarvestTimestamp",
             "type": "t_uint256",
-            "src": "contracts/abstract/ReaperBaseStrategyv4.sol:44"
+            "src": "contracts/abstract/ReaperBaseStrategyv4.sol:31"
           },
           {
             "contract": "ReaperBaseStrategyv4",
             "label": "upgradeProposalTime",
             "type": "t_uint256",
-            "src": "contracts/abstract/ReaperBaseStrategyv4.sol:46"
+            "src": "contracts/abstract/ReaperBaseStrategyv4.sol:33"
           },
           {
             "contract": "ReaperBaseStrategyv4",
             "label": "vault",
             "type": "t_address",
-            "src": "contracts/abstract/ReaperBaseStrategyv4.sol:71"
+            "src": "contracts/abstract/ReaperBaseStrategyv4.sol:58"
           },
           {
             "contract": "ReaperStrategyGranary",
             "label": "gWant",
-            "type": "t_contract(IAToken)15620",
-            "src": "contracts/ReaperStrategyGranary.sol:45"
+            "type": "t_contract(IAToken)5027",
+            "src": "contracts/ReaperStrategyGranary.sol:34"
           },
           {
             "contract": "ReaperStrategyGranary",
             "label": "targetLtv",
             "type": "t_uint256",
-            "src": "contracts/ReaperStrategyGranary.sol:47"
+            "src": "contracts/ReaperStrategyGranary.sol:36"
           },
           {
             "contract": "ReaperStrategyGranary",
             "label": "maxLtv",
             "type": "t_uint256",
-            "src": "contracts/ReaperStrategyGranary.sol:48"
+            "src": "contracts/ReaperStrategyGranary.sol:37"
           },
           {
             "contract": "ReaperStrategyGranary",
             "label": "minLeverageAmount",
             "type": "t_uint256",
-            "src": "contracts/ReaperStrategyGranary.sol:49"
+            "src": "contracts/ReaperStrategyGranary.sol:38"
           },
           {
             "contract": "ReaperStrategyGranary",
             "label": "maxDeleverageLoopIterations",
             "type": "t_uint256",
-            "src": "contracts/ReaperStrategyGranary.sol:50"
+            "src": "contracts/ReaperStrategyGranary.sol:39"
           },
           {
             "contract": "ReaperStrategyGranary",
             "label": "withdrawSlippageTolerance",
             "type": "t_uint256",
-            "src": "contracts/ReaperStrategyGranary.sol:51"
+            "src": "contracts/ReaperStrategyGranary.sol:40"
           },
           {
             "contract": "ReaperStrategyGranary",
             "label": "flashLoanStatus",
             "type": "t_uint256",
-            "src": "contracts/ReaperStrategyGranary.sol:58"
+            "src": "contracts/ReaperStrategyGranary.sol:47"
           },
           {
             "contract": "ReaperStrategyGranary",
             "label": "rewardClaimingTokens",
             "type": "t_array(t_address)dyn_storage",
-            "src": "contracts/ReaperStrategyGranary.sol:73"
+            "src": "contracts/ReaperStrategyGranary.sol:63"
           },
           {
             "contract": "ReaperStrategyGranary",
             "label": "steps",
             "type": "t_array(t_array(t_address)dyn_storage)dyn_storage",
-            "src": "contracts/ReaperStrategyGranary.sol:88"
+            "src": "contracts/ReaperStrategyGranary.sol:78"
           }
         ],
         "types": {
-          "t_contract(IAToken)15620": {
+          "t_contract(IAToken)5027": {
             "label": "contract IAToken"
           },
           "t_uint256": {
