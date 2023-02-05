@@ -339,7 +339,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
      */
     function _leverUpStep(uint256 _totalBorrowIncrease) internal returns (uint256) {
         (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
-        (, , uint256 threshLtv, , , , , , , ) = IAaveProtocolDataProvider(DATA_PROVIDER).getReserveConfigurationData(
+        (, uint256 threshLtv, , , , , , , , ) = IAaveProtocolDataProvider(DATA_PROVIDER).getReserveConfigurationData(
             address(want)
         );
         uint256 threshBorrow = (supply * threshLtv) / PERCENT_DIVISOR;
