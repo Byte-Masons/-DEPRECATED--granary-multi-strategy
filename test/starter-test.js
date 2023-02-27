@@ -769,7 +769,7 @@ describe('Vaults', function () {
 
       console.log(initialVaultBalance.toString());
       // await strategy.authorizedDelever(ethers.constants.MaxUint256);
-      // await strategy.setLeverageParams(0, 1, 10, 50);
+      // await strategy.setLeverage(0, 1, true);
 
       await strategy.harvest();
 
@@ -819,7 +819,7 @@ describe('Vaults', function () {
       const ltvBefore = await strategy.connect(wantHolder).calculateLTV();
       expect(ltvBefore.toNumber()).to.be.closeTo(targetLTV, allowedLTVDrift);
       const newLTV = toWantUnit('0');
-      await strategy.setLeverageParams(newLTV, newLTV+100, 10, 1000);
+      await strategy.setLeverage(newLTV, newLTV+100, true);
       const smallDepositAmount = toWantUnit('1');
       await vault.connect(wantHolder)['deposit(uint256)'](depositAmount);
       await strategy.harvest();
@@ -866,7 +866,7 @@ describe('Vaults', function () {
 
     it('should trigger leveraging on withdraw when LTV is too low', async function () {
       const startingLTV = 4000
-      await strategy.setLeverageParams(startingLTV, startingLTV+100, 10, 1000);
+      await strategy.setLeverage(startingLTV, startingLTV+100, true);
       const depositAmount = toWantUnit('10000');
 
       await vault.connect(wantHolder)['deposit(uint256)'](depositAmount);
@@ -874,7 +874,7 @@ describe('Vaults', function () {
       const ltvBefore = await strategy.calculateLTV();
       expect(ltvBefore.toNumber()).to.be.closeTo(startingLTV, allowedLTVDrift);
       const newLTV = targetLTV;
-      await strategy.setLeverageParams(newLTV, newLTV+100, 10, 1000);
+      await strategy.setLeverage(newLTV, newLTV+100, true);
       const smallWithdrawAmount = toWantUnit('1');
       const userBalance = await want.balanceOf(wantHolderAddr);
       await vault.connect(wantHolder)['withdraw(uint256,address,address)'](smallWithdrawAmount, wantHolderAddr, wantHolderAddr);
@@ -895,7 +895,7 @@ describe('Vaults', function () {
       const ltvBefore = await strategy.calculateLTV();
       expect(ltvBefore.toNumber()).to.be.closeTo(targetLTV, allowedLTVDrift);
       const newLTV = 0;
-      await strategy.setLeverageParams(newLTV, newLTV+100, 10, 1000);
+      await strategy.setLeverage(newLTV, newLTV+100, true);
       const smallWithdrawAmount = toWantUnit('1');
       const userBalance = await want.balanceOf(wantHolderAddr);
       await vault.connect(wantHolder)['withdraw(uint256,address,address)'](smallWithdrawAmount, wantHolderAddr, wantHolderAddr);

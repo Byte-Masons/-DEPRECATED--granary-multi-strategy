@@ -8,6 +8,7 @@ import "./interfaces/IAaveProtocolDataProvider.sol";
 import "./interfaces/IFlashLoanReceiver.sol";
 import "./interfaces/ILendingPool.sol";
 import "./interfaces/ILendingPoolAddressesProvider.sol";
+import "./interfaces/ILeverageable.sol";
 import "./interfaces/IRewardsController.sol";
 import "./libraries/ReaperMathUtils.sol";
 import "./mixins/UniMixin.sol";
@@ -17,7 +18,7 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 /**
  * @dev This strategy will deposit and leverage a token on Granary to maximize yield
  */
-contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniMixin {
+contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniMixin, ILeverageable {
     using ReaperMathUtils for uint256;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -460,12 +461,25 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
     }
 
     /**
-     * @dev Updates target LTV (safely).
-     *      May be called by KEEPER.
+     * @dev This function is designed to be called by a keeper to set the desired
+     *      leverage params within the strategy. The units of the parameters may vary
+     *      from strategy to strategy: some strategies may use basis points, others may
+     *      use ether precision. Moreover, not all parameters will apply to all strategies.
+     *      Strategies are free to ignore parameters they don't care about.
+     * @param targetLeverage the leverage/ltv to target
+     * @param maxLeverage the maximum tolerable leverage/ltv
+     * @param triggerHarvest whether to call the harvest function at the end
      */
-    function setLTVs(uint256 _newTargetLtv, uint256 _newMaxLtv) external {
+    function setLeverage(
+        uint256 targetLeverage,
+        uint256 maxLeverage,
+        bool triggerHarvest
+    ) external override {
         _atLeastRole(KEEPER);
-        _safeUpdateTargetLtv(_newTargetLtv, _newMaxLtv);
+        _safeUpdateTargetLtv(targetLeverage, maxLeverage);
+        if (triggerHarvest) {
+            harvest();
+        }
     }
 
     /**

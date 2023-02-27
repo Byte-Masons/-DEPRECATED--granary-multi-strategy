@@ -106,7 +106,7 @@ abstract contract ReaperBaseStrategyv4 is
      * @dev harvest() function that takes care of logging. Subcontracts should
      *      override _harvestCore() and implement their specific logic in it.
      */
-    function harvest() external override returns (int256 roi) {
+    function harvest() public override returns (int256 roi) {
         _atLeastRole(KEEPER);
         int256 availableCapital = IVault(vault).availableCapital();
         uint256 debt = 0;
