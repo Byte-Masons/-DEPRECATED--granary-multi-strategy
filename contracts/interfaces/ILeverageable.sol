@@ -19,4 +19,23 @@ interface ILeverageable {
         uint256 maxLeverage,
         bool triggerHarvest
     ) external;
+
+    /**
+     * @dev Returns the current state of the strategy in terms of leverage params.
+     *      If all is working as intended, targetLeverage <= realLeverage <= maxLeverage.
+     *      Ideally realLeverage is very close to targetLeverage. The units of the return
+     *      values will vary from strategy to strategy: some strategies may use basis points,
+     *      others may use ether precision.
+     * @return realLeverage the current leverage calculated using real loan values
+     * @return targetLeverage the current value of targetLeverage set within the strategy
+     * @return maxLeverage the current value of maxLeverage set within the strategy
+     */
+    function getCurrentLeverageSnapshot()
+        external
+        view
+        returns (
+            uint256 realLeverage,
+            uint256 targetLeverage,
+            uint256 maxLeverage
+        );
 }

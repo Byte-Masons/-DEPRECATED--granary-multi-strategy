@@ -483,6 +483,30 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
     }
 
     /**
+     * @dev Returns the current state of the strategy in terms of leverage params.
+     *      If all is working as intended, targetLeverage <= realLeverage <= maxLeverage.
+     *      Ideally realLeverage is very close to targetLeverage. The units of the return
+     *      values will vary from strategy to strategy: some strategies may use basis points,
+     *      others may use ether precision.
+     * @return realLeverage the current leverage calculated using real loan values
+     * @return targetLeverage the current value of targetLeverage set within the strategy
+     * @return maxLeverage the current value of maxLeverage set within the strategy
+     */
+    function getCurrentLeverageSnapshot()
+        external
+        view
+        returns (
+            uint256 realLeverage,
+            uint256 targetLeverage,
+            uint256 maxLeverage
+        )
+    {
+        realLeverage = calculateLTV();
+        targetLeverage = targetLtv;
+        maxLeverage = maxLtv;
+    }
+
+    /**
      * @dev Updates target LTV (safely), maximum iterations for the
      *      deleveraging loop, can only be called by strategist or owner.
      */
@@ -513,7 +537,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         targetLtv = _newTargetLtv;
     }
 
-    function calculateLTV() external view returns (uint256 ltv) {
+    function calculateLTV() public view returns (uint256 ltv) {
         (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
         if (supply != 0) {
             ltv = (borrow * PERCENT_DIVISOR) / supply;
