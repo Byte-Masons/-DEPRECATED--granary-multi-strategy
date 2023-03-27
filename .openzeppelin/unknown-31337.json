@@ -18,7 +18,7 @@
     },
     {
       "address": "0xC9a43158891282A2B1475592D5719c001986Aaec",
-      "txHash": "0x7b090df47fffdbe9b9722afa25a6216559d6fcc53a578396736fc3d50bacc9fe",
+      "txHash": "0x408b6a75532acec7b3ecd0a22704c2b2061256c77c2c82f7ec8568358ee6752f",
       "kind": "uups"
     }
   ],
@@ -716,9 +716,9 @@
         }
       }
     },
-    "5a96674a7bb0cf44f503233a6385263e45127f26146892506ad6a54b249ff513": {
+    "aa446893020ac0729b08ce79d7556aa7b1c1d1edb7b0059e4fa24954e3f48777": {
       "address": "0x46b142DD1E924FAb83eCc3c08e4D46E82f005e0E",
-      "txHash": "0x6d96a9a5c4d6da0231cbac029dd736375ebd38a895069de37e019faf3e0612bd",
+      "txHash": "0x4c43428622535702a9725b6c53aebffa1f0bf375b7b8a9c414f389034529dcf8",
       "layout": {
         "storage": [
           {
@@ -814,7 +814,7 @@
           {
             "contract": "ReaperStrategyGranary",
             "label": "gWant",
-            "type": "t_contract(IAToken)10803",
+            "type": "t_contract(IAToken)10807",
             "src": "contracts/ReaperStrategyGranary.sol:34"
           },
           {
@@ -867,7 +867,7 @@
           }
         ],
         "types": {
-          "t_contract(IAToken)10803": {
+          "t_contract(IAToken)10807": {
             "label": "contract IAToken"
           },
           "t_uint256": {

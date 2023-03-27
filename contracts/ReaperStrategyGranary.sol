@@ -158,7 +158,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
 
         uint256 allocated = IVault(vault).strategies(address(this)).allocated;
         uint256 totalAssets = balanceOf();
-        uint256 toFree = _debt;
+        uint256 toFree = MathUpgradeable.min(_debt, totalAssets);
 
         if (totalAssets > allocated) {
             uint256 profit = totalAssets - allocated;
