@@ -17,13 +17,18 @@ abstract contract UniMixin {
             return;
         }
 
-        uint256 amountOut = IUniswapV2Router02(_router).getAmountsOut(_amount, _path)[_path.length - 1];
-        if (amountOut == 0) {
+        IUniswapV2Router02 router = IUniswapV2Router02(_router);
+
+        try router.getAmountsOut(_amount, _path) returns (uint256[] memory amounts) {
+            // return if final output is 0 (don't fail harvest)
+            if (amounts[_path.length - 1] == 0) return;
+        } catch {
+            // return if intermediate output is 0 (don't fail harvest)
             return;
         }
 
         IERC20Minimal(_path[0])._safeIncreaseAllowance(_router, _amount);
-        IUniswapV2Router02(_router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
             _amount, 0, _path, address(this), block.timestamp
         );
     }
