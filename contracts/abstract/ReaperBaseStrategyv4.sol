@@ -94,8 +94,6 @@ abstract contract ReaperBaseStrategyv4 is
      */
     function withdraw(uint256 _amount) external override returns (uint256 loss) {
         require(msg.sender == vault, "Only vault can withdraw");
-        require(_amount != 0, "Amount cannot be zero");
-        require(_amount <= balanceOf(), "Ammount must be less than balance");
 
         uint256 amountFreed = 0;
         (amountFreed, loss) = _liquidatePosition(_amount);
