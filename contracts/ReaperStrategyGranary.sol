@@ -374,7 +374,10 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
 
         uint256 withdrawable = supply - necessarySupply;
         _withdrawAmount = MathUpgradeable.min(_withdrawAmount, withdrawable);
-        LENDING_POOL().withdraw(address(want), _withdrawAmount, address(this));
+
+        if (_withdrawAmount != 0) {
+            LENDING_POOL().withdraw(address(want), _withdrawAmount, address(this));
+        }
     }
 
     /**
