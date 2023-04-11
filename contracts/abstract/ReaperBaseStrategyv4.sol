@@ -57,6 +57,8 @@ abstract contract ReaperBaseStrategyv4 is
      */
     address public vault;
 
+    uint256[50] private __gap;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() initializer {}
 
@@ -64,7 +66,8 @@ abstract contract ReaperBaseStrategyv4 is
         address _vault,
         address _want,
         address[] memory _strategists,
-        address[] memory _multisigRoles
+        address[] memory _multisigRoles,
+        address[] memory _keepers
     ) internal onlyInitializing {
         __UUPSUpgradeable_init();
         __AccessControlEnumerable_init();
@@ -83,6 +86,10 @@ abstract contract ReaperBaseStrategyv4 is
         _grantRole(DEFAULT_ADMIN_ROLE, _multisigRoles[0]);
         _grantRole(ADMIN, _multisigRoles[1]);
         _grantRole(GUARDIAN, _multisigRoles[2]);
+
+        for (uint256 i = 0; i < _keepers.length; i = i.uncheckedInc()) {
+            _grantRole(KEEPER, _keepers[i]);
+        }
 
         clearUpgradeCooldown();
     }

@@ -85,13 +85,14 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         address _vault,
         address[] memory _strategists,
         address[] memory _multisigRoles,
+        address[] memory _keepers,
         IAToken _gWant,
         uint256 _targetLtv,
         uint256 _maxLtv
     ) public initializer {
         gWant = _gWant;
         want = _gWant.UNDERLYING_ASSET_ADDRESS();
-        __ReaperBaseStrategy_init(_vault, want, _strategists, _multisigRoles);
+        __ReaperBaseStrategy_init(_vault, want, _strategists, _multisigRoles, _keepers);
         maxDeleverageLoopIterations = 10;
         minLeverageAmount = 1000;
         withdrawSlippageTolerance = 50;
