@@ -197,6 +197,8 @@ describe('Vaults', function () {
 
     //approving LP token and vault share spend
     await want.connect(wantHolder).approve(vault.address, ethers.constants.MaxUint256);
+    await want.connect(owner).approve(vault.address, ethers.constants.MaxUint256);
+    await want.connect(wantHolder).transfer(owner.address, toWantUnit('100'));
 
     const blockStartTimestamp = 1657805485;
     const hour = 3600;
@@ -345,7 +347,6 @@ describe('Vaults', function () {
     });
 
     it('should mint user their pool share', async function () {
-      const userBalance = await want.balanceOf(wantHolderAddr);
       const depositAmount = toWantUnit('10');
       await vault.connect(wantHolder)['deposit(uint256)'](depositAmount);
       await strategy.harvest();
@@ -362,9 +363,10 @@ describe('Vaults', function () {
       const ownerVaultBalance = await vault.balanceOf(owner.address);
       expect(ownerVaultBalance).to.be.closeTo(ownerDepositAmount, allowedImprecision);
 
+      const ownerWantBalancePreWithdraw = await want.balanceOf(owner.address);
       await vault.connect(owner).withdrawAll();
-      const ownerWantBalance = await want.balanceOf(owner.address);
-      expect(ownerWantBalance).to.be.closeTo(ownerDepositAmount, allowedImprecision);
+      const ownerWantWithdrawn = (await want.balanceOf(owner.address)).sub(ownerWantBalancePreWithdraw);
+      expect(ownerWantWithdrawn).to.be.closeTo(ownerDepositAmount, allowedImprecision);
       const afterOwnerVaultBalance = await vault.balanceOf(owner.address);
       expect(afterOwnerVaultBalance).to.equal(0);
     });
@@ -464,15 +466,14 @@ describe('Vaults', function () {
     });
 
     it('should be able to convert shares in to amount of assets', async function () {
-      const shareAmount = toWantUnit('100');
+      const shareAmount = toWantUnit('10');
       let assets = await vault.convertToAssets(shareAmount);
       expect(assets).to.equal(shareAmount);
       console.log(`assets: ${assets}`);
 
-      const depositAmount = toWantUnit('1337');
-      await vault.connect(wantHolder)['deposit(uint256)'](depositAmount);
-
-      await want.connect(wantHolder).transfer(vault.address, depositAmount);
+      const depositAmount = toWantUnit('17');
+      await vault.connect(wantHolder)['deposit(uint256,address)'](depositAmount, wantHolderAddr);
+      await vault.injectTokens(depositAmount);
 
       assets = await vault.convertToAssets(shareAmount);
       console.log(`assets: ${assets}`);
@@ -538,8 +539,8 @@ describe('Vaults', function () {
       expect(maxMint).to.equal(tvlCap.sub(depositAmount));
 
       // Change the price per share
-      const transferAmount = toWantUnit('11346');
-      await want.connect(wantHolder).transfer(vault.address, transferAmount);
+      const transferAmount = toWantUnit('46');
+      await vault.injectTokens(transferAmount);
       depositAmount = toWantUnit('15');
       await vault.updateTvlCap(tvlCap.add(transferAmount).add(depositAmount));
       const depositPreview = await vault.connect(wantHolder).previewDeposit(depositAmount);
