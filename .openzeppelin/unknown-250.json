@@ -2,42 +2,42 @@
   "manifestVersion": "3.2",
   "proxies": [
     {
-      "address": "0x601215a39a5e1886Da8DC99F15ac0D17C03F4a21",
-      "txHash": "0x3967196f365213361d80d0e058c7a1a434df8b7f5365d760694074ac7e61d9d6",
+      "address": "0xeaC9d3DFD1AEa8C27FbA6B1A630d28Ad2a904E6e",
+      "txHash": "0x96604675593ddb8872fa973bbf9034ed306a48615ec462eb40c19e89557fb95b",
       "kind": "uups"
     },
     {
-      "address": "0xB28c4824c355af8e1aA48670298dBd1d52db6aa7",
-      "txHash": "0x322c8a08d30e6624cc06b6186782b913a1dccdb1a61abca924d66cd54f725de2",
+      "address": "0x55931Fcc38AD5Ef95AB9f478B201Df24299E0f19",
+      "txHash": "0x7ec5078ba919e17935ab8d609d75edbee50ce1e7f1347adb0634282590118cc5",
       "kind": "uups"
     },
     {
-      "address": "0xD4d1888AFB6A58237e80353B7407cC71b6148C55",
-      "txHash": "0x72ac6f35e0f6680ea1985f8320c5710e314a602e4bc1c1f7c72ae9957ccf926a",
+      "address": "0x0Ae44f2838a706A283664e9ddF8c9b3E26a29c98",
+      "txHash": "0x74050179fccc15e36bf25057628d86e951ad500f4ab91c7709d5ec0d563544dd",
       "kind": "uups"
     },
     {
-      "address": "0x4b9028F0230Ab3f025E0683f8E515b546e571a04",
-      "txHash": "0x3a5adf9a462d5b7ef6301b71d819b0175d98e35ab6bd58814d901bfc58dbc125",
+      "address": "0xac975240B1388E3B61574b595694004E5a6c5244",
+      "txHash": "0x61fc517014f1f1f8d83f08c6919b614d2aca663d58d0f6e89a1f477ef61b7447",
       "kind": "uups"
     },
     {
-      "address": "0xA4de751dd479c4e1418350E3B54225aa47cDaa3F",
-      "txHash": "0xdf4c4d7a4c8169da8b202d18696e177e2549494e8b6a2b9e8ab1aba7709e5e35",
+      "address": "0x2fDf1594e3b0354DE47415Fd16f7C31374e7c7fC",
+      "txHash": "0xf4c35190aae7e423ae4574bbb0b5970d2575e9f8a8cbdcfb44de708e3a3a4ba1",
       "kind": "uups"
     },
     {
-      "address": "0x2b3d9A2A4B3EB0ac0F6c1B18885285657887b357",
-      "txHash": "0xd9cba2e32835a172c3b9f8b5598a55d8bd72d0829495e71a76f4ab8aef01e249",
+      "address": "0xc27c182f1945c4D23A657C9e9d607E46379EEff8",
+      "txHash": "0x7c23024dd000f45ce140905e1fce25ed26a505fc12b69eabc8250a1bdb18b3f7",
       "kind": "uups"
     }
   ],
   "impls": {
-    "c500e175a0eb6ec61c8b25d67e465996f1423d85e0df15afed9dbca65c19fde8": {
-      "address": "0x1671787530eEf642eb48ED4c669A92c585a7B17e",
-      "txHash": "0xe2643d08f7e1e122c3ad50b682e70d03754e1744fd24b612b0d1164cd0955d57",
+    "4e98201a28fff6a39109a9e92acd2a05883f91631d1c49493de6fbb12d6cc074": {
+      "address": "0x1CcE8dEf12544eC2F9FaB931d6A7ffc7859D3b12",
+      "txHash": "0x2d590c4c003ea44aa1c6615bb4d52bce2c3d0c5ce48a72fb0d5df47bc25e5f60",
       "layout": {
-        "solcVersion": "0.8.11",
+        "solcVersion": "0.8.18",
         "storage": [
           {
             "label": "_initialized",
@@ -172,7 +172,7 @@
             "label": "gWant",
             "offset": 0,
             "slot": "355",
-            "type": "t_contract(IAToken)6085",
+            "type": "t_contract(IAToken)12816",
             "contract": "ReaperStrategyGranary",
             "src": "contracts/ReaperStrategyGranary.sol:34"
           },
@@ -274,7 +274,7 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(IAToken)6085": {
+          "t_contract(IAToken)12816": {
             "label": "contract IAToken",
             "numberOfBytes": "20"
           },
