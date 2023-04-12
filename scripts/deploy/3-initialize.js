@@ -24,12 +24,12 @@ async function main() {
     '0x16E4399FA9ba6e58F12BF2d2bC35f8BdE8a9a4aB',
     '0x0Ae44f2838a706A283664e9ddF8c9b3E26a29c98'
   );
-  // WETH
+  // WBTC
   await initializeVault(
     '0xfA985463B7FA975d06cde703EC72eFCcF293c605',
     '0xac975240B1388E3B61574b595694004E5a6c5244'
   );
-  // WBTC
+  // WETH
   await initializeVault(
     '0xC052627bc73117d2CB3569f133419550156bdFa1',
     '0x2fDf1594e3b0354DE47415Fd16f7C31374e7c7fC'
