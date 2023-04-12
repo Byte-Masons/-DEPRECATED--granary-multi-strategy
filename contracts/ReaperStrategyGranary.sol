@@ -85,13 +85,14 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         address _vault,
         address[] memory _strategists,
         address[] memory _multisigRoles,
+        address[] memory _keepers,
         IAToken _gWant,
         uint256 _targetLtv,
         uint256 _maxLtv
     ) public initializer {
         gWant = _gWant;
         want = _gWant.UNDERLYING_ASSET_ADDRESS();
-        __ReaperBaseStrategy_init(_vault, want, _strategists, _multisigRoles);
+        __ReaperBaseStrategy_init(_vault, want, _strategists, _multisigRoles, _keepers);
         maxDeleverageLoopIterations = 10;
         minLeverageAmount = 1000;
         withdrawSlippageTolerance = 50;
@@ -158,7 +159,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
 
         uint256 allocated = IVault(vault).strategies(address(this)).allocated;
         uint256 totalAssets = balanceOf();
-        uint256 toFree = _debt;
+        uint256 toFree = MathUpgradeable.min(_debt, totalAssets);
 
         if (totalAssets > allocated) {
             uint256 profit = totalAssets - allocated;
@@ -373,7 +374,10 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
 
         uint256 withdrawable = supply - necessarySupply;
         _withdrawAmount = MathUpgradeable.min(_withdrawAmount, withdrawable);
-        LENDING_POOL().withdraw(address(want), _withdrawAmount, address(this));
+
+        if (_withdrawAmount != 0) {
+            LENDING_POOL().withdraw(address(want), _withdrawAmount, address(this));
+        }
     }
 
     /**
