@@ -1,11 +1,6 @@
 require('dotenv').config();
 
-require('@nomiclabs/hardhat-etherscan');
-require('@nomiclabs/hardhat-waffle');
-require('hardhat-gas-reporter');
-require('hardhat-interface-generator');
-require('hardhat-contract-sizer');
-require('solidity-coverage');
+require("@nomicfoundation/hardhat-toolbox");
 require('@openzeppelin/hardhat-upgrades');
 
 const PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY;

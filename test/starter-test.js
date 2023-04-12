@@ -1,8 +1,5 @@
 const hre = require('hardhat');
-const chai = require('chai');
-const {solidity} = require('ethereum-waffle');
-chai.use(solidity);
-const {expect} = chai;
+const {expect} = require('chai');
 
 const moveTimeForward = async (seconds) => {
   await network.provider.send('evm_increaseTime', [seconds]);
@@ -54,6 +51,8 @@ describe('Vaults', function () {
 
   const wantHolderAddr = '0x431e81e5dfb5a24541b5ff8762bdef3f32f96354';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
+  const strategists = [strategistAddr];
+  const multisigRoles = [superAdminAddress, adminAddress, guardianAddress];
   const keepers = [
     '0x33D6cB7E91C62Dd6980F16D61e0cfae082CaBFCA',
     '0x34Df14D42988e4Dc622e37dc318e70429336B6c5',
@@ -178,8 +177,8 @@ describe('Vaults', function () {
       Strategy,
       [
         vault.address,
-        [strategistAddr],
-        [superAdminAddress, adminAddress, guardianAddress],
+        strategists,
+        multisigRoles,
         keepers,
         gWant,
         targetLtv,
@@ -281,7 +280,7 @@ describe('Vaults', function () {
 
   describe('Vault Access control tests', function () {
     it('unassignedRole has no privileges', async function () {
-      await expect(vault.connect(unassignedRole).addStrategy(strategy.address, 1000)).to.be.reverted;
+      await expect(vault.connect(unassignedRole).addStrategy(strategy.address, 1000, 1000)).to.be.reverted;
 
       await expect(vault.connect(unassignedRole).updateStrategyAllocBPS(strategy.address, 1000)).to.be.reverted;
 
@@ -321,7 +320,26 @@ describe('Vaults', function () {
     });
 
     it('superAdmin has right privileges', async function () {
-      await expect(vault.connect(superAdmin).addStrategy(strategy.address, 1000, 10000)).to.not.be.reverted;
+      await owner.sendTransaction({
+        to: superAdminAddress,
+        value: ethers.utils.parseEther('10'),
+      });
+      const Strategy = await ethers.getContractFactory('ReaperStrategyGranary');
+        const strategy = await hre.upgrades.deployProxy(
+          Strategy,
+          [
+            vault.address,
+            strategists,
+            multisigRoles,
+            keepers,
+            gWant,
+            targetLtv,
+            targetLtv + 100,
+          ],
+          {kind: 'uups'},
+        );
+      await strategy.deployed();
+      await expect(vault.connect(superAdmin).addStrategy(strategy.address, 1000, 1000)).to.not.be.reverted;
       
       await expect(vault.connect(superAdmin).updateStrategyAllocBPS(strategy.address, 1000)).to.not.be.reverted;
 
