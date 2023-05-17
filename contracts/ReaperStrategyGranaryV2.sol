@@ -49,7 +49,7 @@ contract ReaperStrategyGranaryV2 is ReaperStrategyGranary, VeloSolidMixin, BalMi
      * Only {ADMIN} or higher roles may set the array
      * of steps executed as part of harvest.
      */
-    function setHarvestStepsV2(Step[] calldata _newSteps) external {
+    function setHarvestSteps(Step[] calldata _newSteps) external {
         _atLeastRole(ADMIN);
         delete stepsV2;
 
