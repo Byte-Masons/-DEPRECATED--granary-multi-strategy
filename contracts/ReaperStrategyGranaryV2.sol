@@ -14,7 +14,7 @@ import {MathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/Ma
  */
 contract ReaperStrategyGranaryV2 is ReaperStrategyGranary, VeloSolidMixin, BalMixin {
     address public constant BEET_VAULT = 0x20dd72Ed959b6147912C2e529F0a0C651c33c9ce;
-    address public constant VELO_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address public constant VELO_ROUTER = 0x2aa07920E4ecb4ea8C801D9DFEce63875623B285;
 
     enum Exchange {
         Velodrome,
@@ -85,7 +85,7 @@ contract ReaperStrategyGranaryV2 is ReaperStrategyGranary, VeloSolidMixin, BalMi
             } else if (step.dex == Exchange.UniV2) {
                 address[] memory path = new address[](2);
                 path[0] = step.start;
-                path[0] = step.end;
+                path[1] = step.end;
                 _swapUni(amount, path, UNI_ROUTER);
             }
         }
