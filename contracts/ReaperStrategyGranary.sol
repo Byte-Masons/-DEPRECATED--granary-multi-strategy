@@ -8,6 +8,7 @@ import "./interfaces/IAaveProtocolDataProvider.sol";
 import "./interfaces/IFlashLoanReceiver.sol";
 import "./interfaces/ILendingPool.sol";
 import "./interfaces/ILendingPoolAddressesProvider.sol";
+import "./interfaces/ILeverageable.sol";
 import "./interfaces/IRewardsController.sol";
 import "./libraries/ReaperMathUtils.sol";
 import "./mixins/UniMixin.sol";
@@ -17,7 +18,7 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 /**
  * @dev This strategy will deposit and leverage a token on Granary to maximize yield
  */
-contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniMixin {
+contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniMixin, ILeverageable {
     using ReaperMathUtils for uint256;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -50,6 +51,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
     // Misc constants
     uint16 private constant LENDER_REFERRAL_CODE_NONE = 0;
     uint256 private constant INTEREST_RATE_MODE_VARIABLE = 2;
+    uint256 private constant LEVER_SAFETY_ZONE = 9250;
     uint256 private constant DELEVER_SAFETY_ZONE = 9990;
     uint256 private constant MAX_WITHDRAW_SLIPPAGE_TOLERANCE = 200;
 
@@ -83,13 +85,14 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         address _vault,
         address[] memory _strategists,
         address[] memory _multisigRoles,
+        address[] memory _keepers,
         IAToken _gWant,
         uint256 _targetLtv,
         uint256 _maxLtv
     ) public initializer {
         gWant = _gWant;
         want = _gWant.UNDERLYING_ASSET_ADDRESS();
-        __ReaperBaseStrategy_init(_vault, want, _strategists, _multisigRoles);
+        __ReaperBaseStrategy_init(_vault, want, _strategists, _multisigRoles, _keepers);
         maxDeleverageLoopIterations = 10;
         minLeverageAmount = 1000;
         withdrawSlippageTolerance = 50;
@@ -141,7 +144,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
      *      to produce more want.
      * @notice Assumes the deposit will take care of the TVL rebalancing.
      */
-    function _harvestCore(uint256 _debt) internal override returns (int256 roi, uint256 repayment) {
+    function _harvestCore(uint256 _debt) internal virtual override returns (int256 roi, uint256 repayment) {
         _claimRewards();
         uint256 numSteps = steps.length;
         for (uint256 i = 0; i < numSteps; i = i.uncheckedInc()) {
@@ -156,7 +159,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
 
         uint256 allocated = IVault(vault).strategies(address(this)).allocated;
         uint256 totalAssets = balanceOf();
-        uint256 toFree = _debt;
+        uint256 toFree = MathUpgradeable.min(_debt, totalAssets);
 
         if (totalAssets > allocated) {
             uint256 profit = totalAssets - allocated;
@@ -169,27 +172,6 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         (uint256 amountFreed, uint256 loss) = _liquidatePosition(toFree);
         repayment = MathUpgradeable.min(_debt, amountFreed);
         roi -= int256(loss);
-    }
-
-    /**
-     * Only {ADMIN} or higher roles may set the array
-     * of steps executed as part of harvest.
-     */
-    function setHarvestSteps(address[][] calldata _newSteps) external {
-        _atLeastRole(ADMIN);
-        delete steps;
-
-        uint256 numSteps = _newSteps.length;
-        for (uint256 i = 0; i < numSteps; i = i.uncheckedInc()) {
-            address[] memory step = _newSteps[i];
-            uint256 pathLength = step.length;    
-            require(pathLength > 1);
-            for (uint256 j = 0; j < pathLength; j = j.uncheckedInc()) {
-                require(step[j] != address(0));
-            }
-
-            steps.push(step);
-        }
     }
 
     function ADDRESSES_PROVIDER() public pure override returns (ILendingPoolAddressesProvider) {
@@ -207,8 +189,8 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         address initiator,
         bytes calldata
     ) external override returns (bool) {
-        require(initiator == address(this), "!initiator");
-        require(flashLoanStatus == DEPOSIT_FL_IN_PROGRESS, "invalid flashLoanStatus");
+        require(initiator == address(this));
+        require(flashLoanStatus == DEPOSIT_FL_IN_PROGRESS);
         flashLoanStatus = NO_FL_IN_PROGRESS;
 
         // simply deposit everything we have
@@ -276,7 +258,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         uint256 newRealSupply = realSupply > _withdrawAmount ? realSupply - _withdrawAmount : 0;
         uint256 newBorrow = (newRealSupply * targetLtv) / (PERCENT_DIVISOR - targetLtv);
 
-        require(borrow >= newBorrow, "nothing to delever!");
+        require(borrow >= newBorrow);
         uint256 borrowReduction = borrow - newBorrow;
         for (uint256 i = 0; i < maxDeleverageLoopIterations && borrowReduction > minLeverageAmount; i++) {
             borrowReduction -= _leverDownStep(borrowReduction);
@@ -318,8 +300,46 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         uint256 desiredBorrow = (realSupply * targetLtv) / (PERCENT_DIVISOR - targetLtv);
 
         if (desiredBorrow > borrow + minLeverageAmount) {
-            _initFlashLoan(desiredBorrow - borrow, INTEREST_RATE_MODE_VARIABLE, DEPOSIT_FL_IN_PROGRESS);
+            uint256 borrowIncrease = desiredBorrow - borrow;
+
+            // flash loan only if gToken has enough want liquidity
+            if (IERC20Upgradeable(want).balanceOf(address(gWant)) >= borrowIncrease) {
+                _initFlashLoan(borrowIncrease, INTEREST_RATE_MODE_VARIABLE, DEPOSIT_FL_IN_PROGRESS);
+            } else {
+                // otherwise, lever up in increments using a loop
+                for (uint256 i = 0; i < maxDeleverageLoopIterations && borrowIncrease > minLeverageAmount; i++) {
+                    borrowIncrease -= _leverUpStep(borrowIncrease);
+                }
+            }
         }
+    }
+
+    /**
+     * @dev Leverages up one step in an attempt to increase borrow by {_totalBorrowIncrease}.
+     *      Returns the actual amount by which borrow was increased.
+     */
+    function _leverUpStep(uint256 _totalBorrowIncrease) internal returns (uint256) {
+        (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
+        (, uint256 threshLtv, , , , , , , , ) = IAaveProtocolDataProvider(DATA_PROVIDER).getReserveConfigurationData(
+            address(want)
+        );
+        uint256 threshBorrow = (supply * threshLtv) / PERCENT_DIVISOR;
+
+        // don't use 100% of borrow allowance, leave a smidge
+        uint256 allowance = ((threshBorrow - borrow) * LEVER_SAFETY_ZONE) / PERCENT_DIVISOR;
+        allowance = MathUpgradeable.min(allowance, IERC20Upgradeable(want).balanceOf(address(gWant)));
+        allowance = MathUpgradeable.min(allowance, _totalBorrowIncrease);
+        allowance -= 10; // safety reduction to compensate for rounding errors
+
+        if (allowance != 0) {
+            ILendingPool pool = LENDING_POOL();
+            pool.borrow(address(want), allowance, INTEREST_RATE_MODE_VARIABLE, LENDER_REFERRAL_CODE_NONE, address(this));
+            address lendingPoolAddress = ADDRESSES_PROVIDER().getLendingPool();
+            IERC20Upgradeable(want).safeIncreaseAllowance(lendingPoolAddress, allowance);
+            pool.deposit(address(want), allowance, address(this), LENDER_REFERRAL_CODE_NONE);
+        }
+
+        return allowance;
     }
 
     /**
@@ -329,11 +349,14 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
     function _withdrawUnderlying(uint256 _withdrawAmount) internal {
         (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
         uint256 necessarySupply = maxLtv != 0 ? (borrow * PERCENT_DIVISOR) / maxLtv : 0; // use maxLtv instead of targetLtv here
-        require(supply > necessarySupply, "can't withdraw anything!");
+        require(supply > necessarySupply);
 
         uint256 withdrawable = supply - necessarySupply;
         _withdrawAmount = MathUpgradeable.min(_withdrawAmount, withdrawable);
-        LENDING_POOL().withdraw(address(want), _withdrawAmount, address(this));
+
+        if (_withdrawAmount != 0) {
+            LENDING_POOL().withdraw(address(want), _withdrawAmount, address(this));
+        }
     }
 
     /**
@@ -354,7 +377,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         uint256 _rateMode,
         uint256 _newLoanStatus
     ) internal {
-        require(_amount != 0, "FL: invalid amount!");
+        require(_amount != 0);
 
         // asset to be flashed
         address[] memory assets = new address[](1);
@@ -421,12 +444,49 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
     }
 
     /**
-     * @dev Updates target LTV (safely).
-     *      May be called by KEEPER.
+     * @dev This function is designed to be called by a keeper to set the desired
+     *      leverage params within the strategy. The units of the parameters may vary
+     *      from strategy to strategy: some strategies may use basis points, others may
+     *      use ether precision. Moreover, not all parameters will apply to all strategies.
+     *      Strategies are free to ignore parameters they don't care about.
+     * @param targetLeverage the leverage/ltv to target
+     * @param maxLeverage the maximum tolerable leverage/ltv
+     * @param triggerHarvest whether to call the harvest function at the end
      */
-    function setLTVs(uint256 _newTargetLtv, uint256 _newMaxLtv) external {
+    function setLeverage(
+        uint256 targetLeverage,
+        uint256 maxLeverage,
+        bool triggerHarvest
+    ) external override {
         _atLeastRole(KEEPER);
-        _safeUpdateTargetLtv(_newTargetLtv, _newMaxLtv);
+        _safeUpdateTargetLtv(targetLeverage, maxLeverage);
+        if (triggerHarvest) {
+            harvest();
+        }
+    }
+
+    /**
+     * @dev Returns the current state of the strategy in terms of leverage params.
+     *      If all is working as intended, targetLeverage <= realLeverage <= maxLeverage.
+     *      Ideally realLeverage is very close to targetLeverage. The units of the return
+     *      values will vary from strategy to strategy: some strategies may use basis points,
+     *      others may use ether precision.
+     * @return realLeverage the current leverage calculated using real loan values
+     * @return targetLeverage the current value of targetLeverage set within the strategy
+     * @return maxLeverage the current value of maxLeverage set within the strategy
+     */
+    function getCurrentLeverageSnapshot()
+        external
+        view
+        returns (
+            uint256 realLeverage,
+            uint256 targetLeverage,
+            uint256 maxLeverage
+        )
+    {
+        realLeverage = calculateLTV();
+        targetLeverage = targetLtv;
+        maxLeverage = maxLtv;
     }
 
     /**
@@ -454,13 +514,13 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         (, uint256 ltv, , , , , , , , ) = IAaveProtocolDataProvider(DATA_PROVIDER).getReserveConfigurationData(
             address(want)
         );
-        require(_newMaxLtv <= (ltv * LTV_SAFETY_ZONE) / PERCENT_DIVISOR, "maxLtv not safe");
-        require(_newTargetLtv <= _newMaxLtv, "targetLtv must <= maxLtv");
+        require(_newMaxLtv <= (ltv * LTV_SAFETY_ZONE) / PERCENT_DIVISOR);
+        require(_newTargetLtv <= _newMaxLtv);
         maxLtv = _newMaxLtv;
         targetLtv = _newTargetLtv;
     }
 
-    function calculateLTV() external view returns (uint256 ltv) {
+    function calculateLTV() public view returns (uint256 ltv) {
         (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
         if (supply != 0) {
             ltv = (borrow * PERCENT_DIVISOR) / supply;

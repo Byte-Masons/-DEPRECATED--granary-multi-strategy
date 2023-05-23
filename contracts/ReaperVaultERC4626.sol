@@ -206,7 +206,7 @@ contract ReaperVaultERC4626 is ReaperVaultV2, IERC4626Functions {
     ) external override returns (uint256 shares) {
         shares = previewWithdraw(assets); // previewWithdraw() rounds up so exactly "assets" are withdrawn and not 1 wei less
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
-        _withdraw(shares, receiver, owner);
+        require(_withdraw(shares, receiver, owner) == assets, "All assets could not be withdrawn");
     }
 
     // Maximum amount of Vault shares that can be redeemed from the owner balance in the Vault, through a redeem call.
@@ -260,8 +260,23 @@ contract ReaperVaultERC4626 is ReaperVaultV2, IERC4626Functions {
         address receiver,
         address owner
     ) external override returns (uint256 assets) {
+        uint256 ownerShareBalBefore = balanceOf(owner);
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
         assets = _withdraw(shares, receiver, owner);
+        uint256 ownerSharesBurned = ownerShareBalBefore - balanceOf(owner);
+        require(ownerSharesBurned == shares, "All shares could not be redeemed");
+    }
+
+    /**
+     * @dev Super-Admin function to inject tokens directly into the vault
+     *      without going through the deposit flow. Used in tests to verify
+     *      ERC4626 share price behavior.
+     * @param _amount Amount of tokens to inject.
+     */
+    function injectTokens(uint256 _amount) external {
+        _atLeastRole(DEFAULT_ADMIN_ROLE);
+        totalIdle += _amount;
+        token.safeTransferFrom(msg.sender, address(this), _amount);
     }
 
     // Helper function to perform round-up/ceiling integer division.

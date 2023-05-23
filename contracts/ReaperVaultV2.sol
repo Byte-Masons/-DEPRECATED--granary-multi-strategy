@@ -41,6 +41,7 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
     uint256 public constant PERCENT_DIVISOR = 10000;
     uint256 public tvlCap;
 
+    uint256 public totalIdle; // Amount of tokens in the vault
     uint256 public totalAllocBPS; // Sum of allocBPS across all strategies (in BPS, <= 10k)
     uint256 public totalAllocated; // Amount of tokens that have been allocated to all strategies
     uint256 public lastReport; // block.timestamp of last report from any strategy
@@ -187,9 +188,15 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
      * @param _allocBPS The strategy allocation in basis points
      */
     function updateStrategyAllocBPS(address _strategy, uint256 _allocBPS) external {
-        _atLeastRole(STRATEGIST);
         require(strategies[_strategy].activation != 0, "Invalid strategy address");
-        totalAllocBPS -= strategies[_strategy].allocBPS;
+        uint256 currentStrategyAllocBPS = strategies[_strategy].allocBPS;
+        if (currentStrategyAllocBPS != 0) {
+            _atLeastRole(STRATEGIST);
+        } else {
+            // prevent STRATEGIST/GUARDIAN from re-allocating to potentially revoked strategy
+            _atLeastRole(ADMIN);
+        }
+        totalAllocBPS -= currentStrategyAllocBPS;
         strategies[_strategy].allocBPS = _allocBPS;
         totalAllocBPS += _allocBPS;
         require(totalAllocBPS <= PERCENT_DIVISOR, "Invalid BPS value");
@@ -241,7 +248,7 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
 
             uint256 available = stratMaxAllocation - stratCurrentAllocation;
             available = Math.min(available, vaultMaxAllocation - vaultCurrentAllocation);
-            available = Math.min(available, token.balanceOf(address(this)));
+            available = Math.min(available, totalIdle);
 
             return int256(available);
         } else {
@@ -270,11 +277,11 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
 
     /**
      * @dev It calculates the total underlying value of {token} held by the system.
-     * It takes into account the vault contract balance, and the balance deployed across
+     * It takes into account the vault contract idle funds, and the capital deployed across
      * all the strategies.
      */
     function balance() public view returns (uint256) {
-        return token.balanceOf(address(this)) + totalAllocated;
+        return totalIdle + totalAllocated;
     }
 
     /**
@@ -304,8 +311,6 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
     /**
      * @notice The entrypoint of funds into the system. People deposit with this function
      * into the vault.
-     * @notice the _before and _after variables are used to account properly for
-     * 'burn-on-transaction' tokens.
      * @param _amount The amount of assets to deposit
      */
     function deposit(uint256 _amount) external {
@@ -317,20 +322,18 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
     function _deposit(uint256 _amount, address _receiver) internal nonReentrant returns (uint256 shares) {
         require(!emergencyShutdown, "Cannot deposit during emergency shutdown");
         require(_amount != 0, "Invalid amount");
-        uint256 pool = balance();
-        require(pool + _amount <= tvlCap, "Vault is full");
+        require(balance() + _amount <= tvlCap, "Vault is full");
 
-        uint256 freeFunds = _freeFunds();
-        uint256 balBefore = token.balanceOf(address(this));
-        token.safeTransferFrom(msg.sender, address(this), _amount);
-        uint256 balAfter = token.balanceOf(address(this));
-        _amount = balAfter - balBefore;
-        if (totalSupply() == 0) {
+        uint256 supply = totalSupply();
+        if (supply == 0) {
             shares = _amount;
         } else {
-            shares = (_amount * totalSupply()) / freeFunds; // use "freeFunds" instead of "pool"
+            shares = (_amount * supply) / _freeFunds(); // use "freeFunds" instead of "balance"
         }
+
         _mint(_receiver, shares);
+        totalIdle += _amount;
+        token.safeTransferFrom(msg.sender, address(this), _amount);
         emit Deposit(msg.sender, _receiver, _amount, shares);
     }
 
@@ -360,14 +363,12 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
     ) internal nonReentrant returns (uint256 value) {
         require(_shares != 0, "Invalid amount");
         value = (_freeFunds() * _shares) / totalSupply();
-        _burn(_owner, _shares);
 
-        if (value > token.balanceOf(address(this))) {
+        uint256 vaultBalance = totalIdle;
+        if (value > vaultBalance) {
             uint256 totalLoss = 0;
             uint256 queueLength = withdrawalQueue.length;
-            uint256 vaultBalance = 0;
             for (uint256 i = 0; i < queueLength; i = i.uncheckedInc()) {
-                vaultBalance = token.balanceOf(address(this));
                 if (value <= vaultBalance) {
                     break;
                 }
@@ -379,8 +380,10 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
                 }
 
                 uint256 remaining = value - vaultBalance;
+                uint256 preWithdrawBal = token.balanceOf(address(this));
                 uint256 loss = IStrategy(stratAddr).withdraw(Math.min(remaining, strategyBal));
-                uint256 actualWithdrawn = token.balanceOf(address(this)) - vaultBalance;
+                uint256 actualWithdrawn = token.balanceOf(address(this)) - preWithdrawBal;
+                vaultBalance += actualWithdrawn;
 
                 // Withdrawer incurs any losses from withdrawing as reported by strat
                 if (loss != 0) {
@@ -393,9 +396,10 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
                 totalAllocated -= actualWithdrawn;
             }
 
-            vaultBalance = token.balanceOf(address(this));
+            totalIdle = vaultBalance;
             if (value > vaultBalance) {
                 value = vaultBalance;
+                _shares = ((value + totalLoss) * totalSupply()) / _freeFunds();
             }
 
             require(
@@ -404,6 +408,8 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
             );
         }
 
+        _burn(_owner, _shares);
+        totalIdle -= value;
         token.safeTransfer(_receiver, value);
         emit Withdraw(msg.sender, _receiver, _owner, value, _shares);
     }
@@ -520,8 +526,10 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
 
         vars.freeWantInStrat = vars.gain + _repayment;
         if (vars.credit > vars.freeWantInStrat) {
+            totalIdle -= (vars.credit - vars.freeWantInStrat);
             token.safeTransfer(vars.stratAddr, vars.credit - vars.freeWantInStrat);
         } else if (vars.credit < vars.freeWantInStrat) {
+            totalIdle += (vars.freeWantInStrat - vars.credit);
             token.safeTransferFrom(vars.stratAddr, address(this), vars.freeWantInStrat - vars.credit);
         }
 
@@ -633,9 +641,13 @@ contract ReaperVaultV2 is ReaperAccessControl, ERC20, IERC4626Events, AccessCont
      */
     function inCaseTokensGetStuck(address _token) external {
         _atLeastRole(ADMIN);
-        require(_token != address(token), "!token");
 
         uint256 amount = IERC20Metadata(_token).balanceOf(address(this));
+        if (_token == address(token)) {
+            amount -= totalIdle;
+        }
+        require(amount != 0, "Zero amount");
+
         IERC20Metadata(_token).safeTransfer(msg.sender, amount);
         emit InCaseTokensGetStuckCalled(_token, amount);
     }

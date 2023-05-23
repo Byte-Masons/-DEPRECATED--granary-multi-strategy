@@ -1,9 +1,12 @@
+const {ethers, upgrades} = require('hardhat');
+
 async function main() {
   const stratFactory = await ethers.getContractFactory('ReaperStrategyGranary');
-  const stratContract = await hre.upgrades.upgradeProxy('', stratFactory, {
+  const newImpl = await upgrades.prepareUpgrade('0xc99911Af7594964C399f605840d1107E98602aD4', stratFactory, {
     timeout: 0,
+    kind: 'uups',
   });
-  console.log('Strategy upgraded!');
+  console.log(`New impl address: ${newImpl}`);
 }
 
 main()
