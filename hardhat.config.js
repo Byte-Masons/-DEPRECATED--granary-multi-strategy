@@ -1,5 +1,5 @@
 require('dotenv').config();
-
+require('hardhat-contract-sizer');
 require("@nomicfoundation/hardhat-toolbox");
 require('@openzeppelin/hardhat-upgrades');
 
@@ -20,7 +20,7 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 200,
+            runs: 199,
           },
         },
       },
@@ -44,4 +44,10 @@ module.exports = {
   mocha: {
     timeout: 1200000,
   },
+  contractSizer: {
+    alphaSort: true,
+    disambiguatePaths: false,
+    runOnCompile: true,
+    strict: true,
+  }
 };

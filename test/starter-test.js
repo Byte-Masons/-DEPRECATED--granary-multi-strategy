@@ -49,7 +49,7 @@ describe('Vaults', function () {
   const variableDebtWant = '0x0f7f11AA3C42aaa5e653EbEd07220B4392a976A4';
   const targetLtv = 5000;
 
-  const wantHolderAddr = '0x431e81e5dfb5a24541b5ff8762bdef3f32f96354';
+  const wantHolderAddr = '0x3E923747cA2675E096d812c3b24846aC39aeD645';
   const strategistAddr = '0x1A20D7A31e5B3Bc5f02c8A146EF6f394502a10c4';
   const strategists = [strategistAddr];
   const multisigRoles = [superAdminAddress, adminAddress, guardianAddress];
@@ -80,6 +80,9 @@ describe('Vaults', function () {
   const oathAddr = '0x21ada0d2ac28c3a5fa3cd2ee30882da8812279b6';
   const staderAddr = '0x412a13C109aC30f0dB80AD3Bd1DeFd5D0A6c0Ac6';
   const usdcAddr = '0x04068DA6C83AFCFA0e13ba15A6696662335D5B75';
+  const grainAddr = '0x02838746d9e1413e07ee064fcbada57055417f21';
+
+  const gasAmount = '2.0';
 
   let owner;
   let wantHolder;
@@ -102,8 +105,8 @@ describe('Vaults', function () {
       params: [
         {
           forking: {
-            jsonRpcUrl: 'https://late-wild-fire.fantom.quiknode.pro/',
-            blockNumber: 53248840,
+            jsonRpcUrl: 'https://rpc.ftm.tools',
+            blockNumber: 62521807,
           },
         },
       ],
@@ -159,7 +162,7 @@ describe('Vaults', function () {
 
     //get artifacts
     Vault = await ethers.getContractFactory('ReaperVaultERC4626');
-    Strategy = await ethers.getContractFactory('ReaperStrategyGranary');
+    Strategy = await ethers.getContractFactory('ReaperStrategyGranaryV2');
     Want = await ethers.getContractFactory('@openzeppelin/contracts/token/ERC20/ERC20.sol:ERC20');
 
     //deploy contracts
@@ -209,23 +212,21 @@ describe('Vaults', function () {
       to: rewarderOwnerAddr,
       value: ethers.utils.parseEther('1'), // Sends exactly 1.0 ether
     });
+    
+    const VELODROME = 0;
+    const BEETHOVEN = 1;
+    const UNIV3 = 2;
+    const UNIV2 = 3;
 
-    // Set harvest steps
-    // struct StepTypeWithData {
-    //     HarvestStepType stepType;
-    //     address[] path; // path[0] is treated as feesToken for ChargeFees step
-    //     StepPercentageType percentageType;
-    //     uint256 percentage; // in basis points precision
-    // }
-
-    // step 1: swap all of OATH -> USDC using path OATH -> USDC
-    const step1 = [oathAddr, usdcAddr];
-    // step 2: swap all of SD -> USDC using path SD -> USDC
-    const step2 = [staderAddr, usdcAddr];
-
-    // step 3: convert all remaining USDC -> wFTM
-    const step3 = [usdcAddr, wantAddress];
-    await strategy.setHarvestSteps([step1, step2, step3]);
+    const step1 = {
+      dex: BEETHOVEN,
+      start: grainAddr,
+      end: wantAddress
+    }
+    
+    await strategy.setHarvestSteps([step1]);
+    const oatsAndGrainsBalPoolId = "0x21bbfc5681d9e171677dbd1a85a9ab15df82ad86000100000000000000000708";
+    await strategy.updateBalSwapPoolID(grainAddr, wantAddress, oatsAndGrainsBalPoolId);
   });
 
   describe('Deploying the vault and strategy', function () {
@@ -250,7 +251,7 @@ describe('Vaults', function () {
     it('guardian has right privileges', async function () {
       const tx = await strategist.sendTransaction({
         to: guardianAddress,
-        value: ethers.utils.parseEther('1.0'),
+        value: ethers.utils.parseEther(gasAmount),
       });
       await tx.wait();
 
@@ -260,7 +261,7 @@ describe('Vaults', function () {
     it('admin has right privileges', async function () {
       const tx = await strategist.sendTransaction({
         to: adminAddress,
-        value: ethers.utils.parseEther('1.0'),
+        value: ethers.utils.parseEther(gasAmount),
       });
       await tx.wait();
 
@@ -270,7 +271,7 @@ describe('Vaults', function () {
     it('super-admin/owner has right privileges', async function () {
       const tx = await strategist.sendTransaction({
         to: superAdminAddress,
-        value: ethers.utils.parseEther('1.0'),
+        value: ethers.utils.parseEther(gasAmount),
       });
       await tx.wait();
 
@@ -324,7 +325,7 @@ describe('Vaults', function () {
         to: superAdminAddress,
         value: ethers.utils.parseEther('10'),
       });
-      const Strategy = await ethers.getContractFactory('ReaperStrategyGranary');
+      const Strategy = await ethers.getContractFactory('ReaperStrategyGranaryV2');
         const strategy = await hre.upgrades.deployProxy(
           Strategy,
           [

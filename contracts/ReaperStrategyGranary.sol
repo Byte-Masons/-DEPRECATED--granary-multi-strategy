@@ -144,7 +144,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
      *      to produce more want.
      * @notice Assumes the deposit will take care of the TVL rebalancing.
      */
-    function _harvestCore(uint256 _debt) internal override returns (int256 roi, uint256 repayment) {
+    function _harvestCore(uint256 _debt) internal virtual override returns (int256 roi, uint256 repayment) {
         _claimRewards();
         uint256 numSteps = steps.length;
         for (uint256 i = 0; i < numSteps; i = i.uncheckedInc()) {
@@ -174,27 +174,6 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         roi -= int256(loss);
     }
 
-    /**
-     * Only {ADMIN} or higher roles may set the array
-     * of steps executed as part of harvest.
-     */
-    function setHarvestSteps(address[][] calldata _newSteps) external {
-        _atLeastRole(ADMIN);
-        delete steps;
-
-        uint256 numSteps = _newSteps.length;
-        for (uint256 i = 0; i < numSteps; i = i.uncheckedInc()) {
-            address[] memory step = _newSteps[i];
-            uint256 pathLength = step.length;    
-            require(pathLength > 1);
-            for (uint256 j = 0; j < pathLength; j = j.uncheckedInc()) {
-                require(step[j] != address(0));
-            }
-
-            steps.push(step);
-        }
-    }
-
     function ADDRESSES_PROVIDER() public pure override returns (ILendingPoolAddressesProvider) {
         return ADDRESS_PROVIDER;
     }
@@ -210,8 +189,8 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         address initiator,
         bytes calldata
     ) external override returns (bool) {
-        require(initiator == address(this), "!initiator");
-        require(flashLoanStatus == DEPOSIT_FL_IN_PROGRESS, "invalid flashLoanStatus");
+        require(initiator == address(this));
+        require(flashLoanStatus == DEPOSIT_FL_IN_PROGRESS);
         flashLoanStatus = NO_FL_IN_PROGRESS;
 
         // simply deposit everything we have
@@ -279,7 +258,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         uint256 newRealSupply = realSupply > _withdrawAmount ? realSupply - _withdrawAmount : 0;
         uint256 newBorrow = (newRealSupply * targetLtv) / (PERCENT_DIVISOR - targetLtv);
 
-        require(borrow >= newBorrow, "nothing to delever!");
+        require(borrow >= newBorrow);
         uint256 borrowReduction = borrow - newBorrow;
         for (uint256 i = 0; i < maxDeleverageLoopIterations && borrowReduction > minLeverageAmount; i++) {
             borrowReduction -= _leverDownStep(borrowReduction);
@@ -370,7 +349,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
     function _withdrawUnderlying(uint256 _withdrawAmount) internal {
         (uint256 supply, uint256 borrow) = getSupplyAndBorrow();
         uint256 necessarySupply = maxLtv != 0 ? (borrow * PERCENT_DIVISOR) / maxLtv : 0; // use maxLtv instead of targetLtv here
-        require(supply > necessarySupply, "can't withdraw anything!");
+        require(supply > necessarySupply);
 
         uint256 withdrawable = supply - necessarySupply;
         _withdrawAmount = MathUpgradeable.min(_withdrawAmount, withdrawable);
@@ -398,7 +377,7 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         uint256 _rateMode,
         uint256 _newLoanStatus
     ) internal {
-        require(_amount != 0, "FL: invalid amount!");
+        require(_amount != 0);
 
         // asset to be flashed
         address[] memory assets = new address[](1);
@@ -535,8 +514,8 @@ contract ReaperStrategyGranary is ReaperBaseStrategyv4, IFlashLoanReceiver, UniM
         (, uint256 ltv, , , , , , , , ) = IAaveProtocolDataProvider(DATA_PROVIDER).getReserveConfigurationData(
             address(want)
         );
-        require(_newMaxLtv <= (ltv * LTV_SAFETY_ZONE) / PERCENT_DIVISOR, "maxLtv not safe");
-        require(_newTargetLtv <= _newMaxLtv, "targetLtv must <= maxLtv");
+        require(_newMaxLtv <= (ltv * LTV_SAFETY_ZONE) / PERCENT_DIVISOR);
+        require(_newTargetLtv <= _newMaxLtv);
         maxLtv = _newMaxLtv;
         targetLtv = _newTargetLtv;
     }
